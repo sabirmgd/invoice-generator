@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsIn } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsIn, Allow } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class SendMessageDto {
@@ -20,4 +20,7 @@ export class SendMessageDto {
   @IsOptional()
   @IsString()
   apiKey?: string;
+
+  @Allow()
+  files?: any;
 }

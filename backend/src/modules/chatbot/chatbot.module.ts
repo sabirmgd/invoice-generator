@@ -6,6 +6,7 @@ import { ChatbotService } from './chatbot.service';
 import { ChatToolsService } from './chat-tools.service';
 import { ContextService } from './services/context.service';
 import { PromptService } from './services/prompt.service';
+import { FileProcessorService } from './services/file-processor.service';
 import { SettingsModule } from '../settings/settings.module';
 import { ProfilesModule } from '../profiles/profiles.module';
 import { InvoicesModule } from '../invoices/invoices.module';
@@ -18,6 +19,6 @@ import { InvoicesModule } from '../invoices/invoices.module';
     InvoicesModule,
   ],
   controllers: [ChatbotController],
-  providers: [ChatbotService, ChatToolsService, ContextService, PromptService],
+  providers: [ChatbotService, ChatToolsService, ContextService, PromptService, FileProcessorService],
 })
 export class ChatbotModule {}

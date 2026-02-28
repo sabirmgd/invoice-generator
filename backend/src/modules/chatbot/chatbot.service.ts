@@ -11,6 +11,7 @@ import { SettingsService } from '../settings/settings.service';
 import { AuthService } from '../auth/auth.service';
 import { ChatToolsService } from './chat-tools.service';
 import { PromptService } from './services/prompt.service';
+import { FileProcessorService } from './services/file-processor.service';
 import { StreamChunk } from './interfaces/stream-chunk.interface';
 
 const MAX_TOOL_ROUNDS = 8;
@@ -29,6 +30,7 @@ export class ChatbotService {
     private readonly authService: AuthService,
     private readonly chatTools: ChatToolsService,
     private readonly promptService: PromptService,
+    private readonly fileProcessor: FileProcessorService,
   ) {}
 
   async resolveApiKey(
@@ -51,7 +53,7 @@ export class ChatbotService {
     if (provider === 'anthropic') {
       return new ChatAnthropic({
         apiKey,
-        model: 'claude-sonnet-4-5-20250514',
+        model: 'claude-sonnet-4-20250514',
         maxTokens: 4096,
       });
     }
@@ -69,6 +71,7 @@ export class ChatbotService {
     conversationId: string | undefined,
     provider: string,
     apiKey?: string,
+    files?: Express.Multer.File[],
   ): AsyncGenerator<StreamChunk> {
     const convId = conversationId || uuid();
 
@@ -83,14 +86,39 @@ export class ChatbotService {
       return;
     }
 
-    await this.saveMessage(ownerId, convId, ChatRole.USER, message);
+    // Save user message with file metadata if present
+    const fileMetadata = files?.length
+      ? { files: files.map((f) => ({ filename: f.originalname, mimeType: f.mimetype, size: f.size })) }
+      : undefined;
+    await this.saveMessage(ownerId, convId, ChatRole.USER, message, undefined, undefined, undefined, fileMetadata);
+
+    // Process uploaded files into LangChain content blocks
+    let fileBlocks: { type: string; [key: string]: unknown }[] = [];
+    if (files?.length) {
+      for (const file of files) {
+        yield { type: 'file_processing', filename: file.originalname, status: 'processing' };
+      }
+      fileBlocks = this.fileProcessor.processFiles(files);
+      for (const file of files) {
+        yield { type: 'file_processing', filename: file.originalname, status: 'done' };
+      }
+    }
 
     const history = await this.loadHistory(ownerId, convId);
     const systemPrompt = await this.promptService.buildSystemPrompt(ownerId);
     const messages: LangChainMessage[] = [
       new SystemMessage(systemPrompt),
-      ...history.map((msg) => this.toLanguageMessage(msg)),
+      ...history.slice(0, -1).map((msg) => this.toLanguageMessage(msg)),
     ];
+
+    // Build the current user message — multimodal if files were uploaded
+    if (fileBlocks.length > 0) {
+      messages.push(new HumanMessage({
+        content: [{ type: 'text', text: message }, ...fileBlocks] as any,
+      }));
+    } else {
+      messages.push(new HumanMessage(message));
+    }
 
     const tools = this.chatTools.buildTools(ownerId);
     const model = this.createModel(resolved.provider, resolved.apiKey);
@@ -199,6 +227,11 @@ export class ChatbotService {
 
   private toLanguageMessage(msg: ChatMessage): LangChainMessage {
     if (msg.role === ChatRole.USER) {
+      const meta = msg.metadata as { files?: { filename: string }[] } | null;
+      if (meta?.files?.length) {
+        const refs = meta.files.map((f) => `[Attached: ${f.filename}]`).join(', ');
+        return new HumanMessage(`${msg.content}\n${refs}`);
+      }
       return new HumanMessage(msg.content);
     }
     if (msg.role === ChatRole.TOOL) {
@@ -225,6 +258,7 @@ export class ChatbotService {
     toolCalls?: Record<string, unknown>[],
     toolName?: string,
     toolCallId?: string,
+    metadata?: Record<string, unknown>,
   ): Promise<ChatMessage> {
     const msg = this.messageRepo.create({
       ownerId,
@@ -234,6 +268,7 @@ export class ChatbotService {
       toolCalls,
       toolName,
       toolCallId,
+      metadata,
     });
     return this.messageRepo.save(msg);
   }
