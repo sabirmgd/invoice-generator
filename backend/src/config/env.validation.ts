@@ -12,6 +12,8 @@ export const envValidationSchema = Joi.object({
   DB_DATABASE: Joi.string().required(),
   DB_SYNC: Joi.string().valid('true', 'false').default('false'),
   DB_LOGGING: Joi.string().valid('true', 'false').default('false'),
+  DB_SOCKET_PATH: Joi.string().optional().allow(''),
+  CLOUD_SQL_CONNECTION_NAME: Joi.string().optional().allow(''),
   PDF_OUTPUT_DIR: Joi.string().default('./generated/invoices'),
 
   // Firebase (optional — disabled if not set)

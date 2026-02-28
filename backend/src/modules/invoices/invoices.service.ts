@@ -27,6 +27,9 @@ export class InvoicesService {
   ) {}
 
   async create(ownerId: string, dto: CreateInvoiceDto): Promise<Invoice> {
+    // Ensure default settings exist for this owner
+    await this.settingsService.ensureDefaults(ownerId);
+
     // Validate profiles exist and belong to owner
     await this.profilesService.findOne(ownerId, dto.senderProfileId);
     await this.profilesService.findOne(ownerId, dto.clientProfileId);
