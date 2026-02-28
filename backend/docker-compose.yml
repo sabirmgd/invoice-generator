@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: invoice-generator-db
+    ports:
+      - '8001:5432'
+    environment:
+      POSTGRES_DB: invoice_generator
+      POSTGRES_USER: invoice_user
+      POSTGRES_PASSWORD: invoice_secret_2024
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
