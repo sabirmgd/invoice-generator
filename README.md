@@ -1,6 +1,10 @@
-# Invoice Generator API
+# Invoice Generator
 
-AI-native invoicing platform with a tool-calling chatbot, dual authentication (anonymous sessions + Firebase), BYOK LLM keys, and automatic PDF generation.
+AI-native invoicing platform with:
+- NestJS backend API (`backend/`)
+- Next.js frontend workspace (`frontend/`)
+
+Core capabilities include tool-calling chatbot workflows, dual authentication (anonymous sessions + Firebase), BYOK LLM keys, and automatic PDF generation.
 
 ## Architecture
 
@@ -123,6 +127,19 @@ npm run start:dev
 
 The API will be available at `http://localhost:8100` with Swagger docs at `http://localhost:8100/api/docs`.
 
+### Frontend Setup (Next.js)
+
+```bash
+cd invoice-generator/frontend
+cp .env.example .env.local
+npm install
+npm run dev
+```
+
+The frontend runs on `http://localhost:3000`.
+
+Set `NEXT_PUBLIC_API_BASE_URL` in `frontend/.env.local` to your backend URL.
+
 ### Try the Chat (Anonymous)
 
 ```bash
@@ -150,29 +167,36 @@ chat_messages ── conversation history (ownerId, role, tool calls)
 ## Project Structure
 
 ```
-src/
-├── main.ts                         # Bootstrap, middleware, Swagger
-├── app.module.ts                   # Root module
-├── config/                         # App, database, Swagger config + Joi validation
-├── db/
-│   ├── entities/                   # TypeORM entities (Setting, Profile, Invoice, User, ChatMessage)
-│   ├── naming.strategy.ts          # Snake case column naming
-│   └── seeds/                      # Database seeding
-├── common/
-│   ├── dto/                        # Shared DTOs (pagination)
-│   ├── exceptions/                 # AppException, NotFoundException
-│   ├── filters/                    # Global exception filter
-│   ├── interceptors/               # Response transform interceptor
-│   ├── services/                   # EncryptionService (AES-256-GCM)
-│   └── utils/                      # Pagination, findOneOrFail
-└── modules/
-    ├── auth/                       # Firebase Auth, OptionalAuthGuard, @OwnerId()
-    ├── chatbot/                    # LangChain agent, 14 tools, SSE streaming
-    ├── settings/                   # Key-value settings per owner
-    ├── profiles/                   # Sender/client/bank profiles
-    ├── invoices/                   # Invoice CRUD + PDF generation
-    ├── pdf/                        # PDFKit service
-    └── health/                     # Liveness + readiness checks
+backend/
+└── src/
+    ├── main.ts                     # Bootstrap, middleware, Swagger
+    ├── app.module.ts               # Root module
+    ├── config/                     # App, database, Swagger config + Joi validation
+    ├── db/
+    │   ├── entities/               # TypeORM entities (Setting, Profile, Invoice, User, ChatMessage)
+    │   ├── naming.strategy.ts      # Snake case column naming
+    │   └── seeds/                  # Database seeding
+    ├── common/
+    │   ├── dto/                    # Shared DTOs (pagination)
+    │   ├── exceptions/             # AppException, NotFoundException
+    │   ├── filters/                # Global exception filter
+    │   ├── interceptors/           # Response transform interceptor
+    │   ├── services/               # EncryptionService (AES-256-GCM)
+    │   └── utils/                  # Pagination, findOneOrFail
+    └── modules/
+        ├── auth/                   # Firebase Auth, OptionalAuthGuard, @OwnerId()
+        ├── chatbot/                # LangChain agent, 14 tools, SSE streaming
+        ├── settings/               # Key-value settings per owner
+        ├── profiles/               # Sender/client/bank profiles
+        ├── invoices/               # Invoice CRUD + PDF generation
+        ├── pdf/                    # PDFKit service
+        └── health/                 # Liveness + readiness checks
+
+frontend/
+└── src/
+    ├── app/                        # App Router pages, layout, global styles
+    ├── components/                 # Invoice workspace UI
+    └── lib/                        # API/session/types helpers
 ```
 
 ## License

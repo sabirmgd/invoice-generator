@@ -4,12 +4,30 @@ import { Repository } from 'typeorm';
 import { Setting } from '../../db/entities/setting.entity';
 import { AppException } from '../../common/exceptions/app.exception';
 
-const DEFAULT_SETTINGS: { key: string; value: string; description: string }[] = [
-  { key: 'invoice_prefix', value: 'INV', description: 'Prefix for invoice numbers' },
-  { key: 'invoice_next_number', value: '1', description: 'Next invoice sequence number' },
-  { key: 'currency', value: 'SAR', description: 'Default currency code' },
-  { key: 'tax_rate', value: '15', description: 'Default tax rate percentage' },
-];
+const DEFAULT_SETTINGS: { key: string; value: string; description: string }[] =
+  [
+    {
+      key: 'invoice_prefix',
+      value: 'INV',
+      description: 'Prefix for invoice numbers',
+    },
+    {
+      key: 'invoice_next_number',
+      value: '1',
+      description: 'Next invoice sequence number',
+    },
+    { key: 'currency', value: 'SAR', description: 'Default currency code' },
+    {
+      key: 'tax_rate',
+      value: '15',
+      description: 'Default tax rate percentage',
+    },
+    {
+      key: 'invoice_logo_data_url',
+      value: '',
+      description: 'Optional logo data URL for invoice header (PNG/JPG/WEBP)',
+    },
+  ];
 
 @Injectable()
 export class SettingsService {
@@ -56,7 +74,11 @@ export class SettingsService {
     return this.repo.save(setting);
   }
 
-  async getValue(ownerId: string, key: string, fallback: string = ''): Promise<string> {
+  async getValue(
+    ownerId: string,
+    key: string,
+    fallback: string = '',
+  ): Promise<string> {
     const setting = await this.repo.findOneBy({ ownerId, key });
     return setting?.value ?? fallback;
   }

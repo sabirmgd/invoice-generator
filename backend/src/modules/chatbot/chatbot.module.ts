@@ -19,6 +19,12 @@ import { InvoicesModule } from '../invoices/invoices.module';
     InvoicesModule,
   ],
   controllers: [ChatbotController],
-  providers: [ChatbotService, ChatToolsService, ContextService, PromptService, FileProcessorService],
+  providers: [
+    ChatbotService,
+    ChatToolsService,
+    ContextService,
+    PromptService,
+    FileProcessorService,
+  ],
 })
 export class ChatbotModule {}

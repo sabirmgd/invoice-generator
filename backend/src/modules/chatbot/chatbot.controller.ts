@@ -30,7 +30,12 @@ import { OwnerId } from '../auth/decorators/owner-id.decorator';
 import { RequestContext } from '../auth/interfaces/request-context';
 
 const UPLOAD_DIR = '/tmp/chat-uploads';
-const ALLOWED_MIMES = ['application/pdf', 'image/png', 'image/jpeg', 'image/webp'];
+const ALLOWED_MIMES = [
+  'application/pdf',
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 @ApiTags('Chat')
@@ -45,7 +50,10 @@ export class ChatbotController {
   ) {}
 
   @Post('stream')
-  @ApiOperation({ summary: 'Send a message (with optional file attachments) and stream the response via SSE' })
+  @ApiOperation({
+    summary:
+      'Send a message (with optional file attachments) and stream the response via SSE',
+  })
   @ApiConsumes('multipart/form-data', 'application/json')
   @UseInterceptors(
     FilesInterceptor('files', 5, {
@@ -102,7 +110,10 @@ export class ChatbotController {
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown error';
-      this.logger.error(`Chat stream error: ${message}`, err instanceof Error ? err.stack : undefined);
+      this.logger.error(
+        `Chat stream error: ${message}`,
+        err instanceof Error ? err.stack : undefined,
+      );
       res.write(`data: ${JSON.stringify({ type: 'error', message })}\n\n`);
     } finally {
       if (files?.length) {

@@ -43,7 +43,9 @@ steps:
       - '--port'
       - '8080'
       - '--set-env-vars'
-      - 'NODE_ENV=production,DB_SOCKET_PATH=/cloudsql,CLOUD_SQL_CONNECTION_NAME=${_CLOUD_SQL_INSTANCE},DB_DATABASE=invoice_generator,PDF_OUTPUT_DIR=/tmp/invoices'
+      - 'NODE_ENV=production,DB_SOCKET_PATH=/cloudsql,CLOUD_SQL_CONNECTION_NAME=${_CLOUD_SQL_INSTANCE},DB_USERNAME=delegate_app,DB_DATABASE=invoice_generator,DB_SYNC=true,DB_LOGGING=false,PDF_OUTPUT_DIR=/tmp/invoices'
+      - '--set-secrets'
+      - 'DB_PASSWORD=db-password:latest,ENCRYPTION_MASTER_KEY=encryption-master-key:latest'
 
 substitutions:
   _REGION: asia-southeast1

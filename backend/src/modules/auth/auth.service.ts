@@ -34,7 +34,10 @@ export class AuthService implements OnModuleInit {
 
   async verifyToken(idToken: string): Promise<admin.auth.DecodedIdToken> {
     if (!this.firebaseApp) {
-      throw new AppException('Firebase not configured', HttpStatus.SERVICE_UNAVAILABLE);
+      throw new AppException(
+        'Firebase not configured',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
     }
     return this.firebaseApp.auth().verifyIdToken(idToken);
   }
@@ -70,7 +73,9 @@ export class AuthService implements OnModuleInit {
     await this.userRepo.save(user);
   }
 
-  async getDecryptedLlmKey(firebaseUid: string): Promise<{ apiKey: string; provider: string } | null> {
+  async getDecryptedLlmKey(
+    firebaseUid: string,
+  ): Promise<{ apiKey: string; provider: string } | null> {
     const user = await this.findByFirebaseUid(firebaseUid);
     if (!user?.encryptedLlmKey || !user.llmProvider) return null;
     return {

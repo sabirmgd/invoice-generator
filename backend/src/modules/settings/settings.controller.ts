@@ -13,23 +13,26 @@ export class SettingsController {
 
   @Get()
   @ApiOperation({ summary: 'List all settings' })
-  findAll(@OwnerId() ownerId: string) {
+  async findAll(@OwnerId() ownerId: string) {
+    await this.settingsService.ensureDefaults(ownerId);
     return this.settingsService.findAll(ownerId);
   }
 
   @Get(':key')
   @ApiOperation({ summary: 'Get a setting by key' })
-  findByKey(@OwnerId() ownerId: string, @Param('key') key: string) {
+  async findByKey(@OwnerId() ownerId: string, @Param('key') key: string) {
+    await this.settingsService.ensureDefaults(ownerId);
     return this.settingsService.findByKey(ownerId, key);
   }
 
   @Patch(':key')
   @ApiOperation({ summary: 'Update a setting value' })
-  update(
+  async update(
     @OwnerId() ownerId: string,
     @Param('key') key: string,
     @Body() dto: UpdateSettingDto,
   ) {
+    await this.settingsService.ensureDefaults(ownerId);
     return this.settingsService.update(ownerId, key, dto.value);
   }
 }

@@ -19,24 +19,46 @@ export class ChatToolsService {
     return [
       new DynamicStructuredTool({
         name: 'create_invoice',
-        description: 'Create a new invoice with line items and auto-generate PDF',
+        description:
+          'Create a new invoice with line items and auto-generate PDF',
         schema: z.object({
-          senderProfileId: z.string().uuid().describe('UUID of the sender profile'),
-          clientProfileId: z.string().uuid().describe('UUID of the client profile'),
-          bankProfileId: z.string().uuid().optional().describe('UUID of the bank profile (uses default if omitted)'),
+          senderProfileId: z
+            .string()
+            .uuid()
+            .describe('UUID of the sender profile'),
+          clientProfileId: z
+            .string()
+            .uuid()
+            .describe('UUID of the client profile'),
+          bankProfileId: z
+            .string()
+            .uuid()
+            .optional()
+            .describe('UUID of the bank profile (uses default if omitted)'),
           issueDate: z.string().describe('Issue date in YYYY-MM-DD format'),
           dueDate: z.string().describe('Due date in YYYY-MM-DD format'),
-          currency: z.string().optional().describe('Currency code (defaults to settings)'),
-          taxRate: z.number().optional().describe('Tax rate percentage (defaults to settings)'),
+          currency: z
+            .string()
+            .optional()
+            .describe('Currency code (defaults to settings)'),
+          taxRate: z
+            .number()
+            .optional()
+            .describe('Tax rate percentage (defaults to settings)'),
           notes: z.string().optional(),
-          items: z.array(z.object({
-            description: z.string(),
-            quantity: z.number(),
-            unitPrice: z.number(),
-          })).min(1).describe('Invoice line items'),
+          items: z
+            .array(
+              z.object({
+                description: z.string(),
+                quantity: z.number(),
+                unitPrice: z.number(),
+              }),
+            )
+            .min(1)
+            .describe('Invoice line items'),
         }),
         func: async (input) => {
-          const invoice = await this.invoices.create(ownerId, input as any);
+          const invoice = await this.invoices.create(ownerId, input);
           return JSON.stringify({
             id: invoice.id,
             invoiceNumber: invoice.invoiceNumber,
@@ -115,7 +137,8 @@ export class ChatToolsService {
 
       new DynamicStructuredTool({
         name: 'update_invoice_status',
-        description: 'Change the status of an invoice (draft, sent, paid, cancelled)',
+        description:
+          'Change the status of an invoice (draft, sent, paid, cancelled)',
         schema: z.object({
           id: z.string().uuid().describe('Invoice UUID'),
           status: z.enum(['draft', 'sent', 'paid', 'cancelled']),
@@ -134,7 +157,8 @@ export class ChatToolsService {
 
       new DynamicStructuredTool({
         name: 'get_invoice_summary',
-        description: 'Get summary statistics: counts by status and total revenue',
+        description:
+          'Get summary statistics: counts by status and total revenue',
         schema: z.object({}),
         func: async () => {
           const summary = await this.invoices.getSummary(ownerId);
@@ -261,12 +285,17 @@ export class ChatToolsService {
 
       new DynamicStructuredTool({
         name: 'list_settings',
-        description: 'List all settings (currency, tax_rate, invoice_prefix, etc.)',
+        description:
+          'List all settings (currency, tax_rate, invoice_prefix, etc.)',
         schema: z.object({}),
         func: async () => {
           const all = await this.settings.findAll(ownerId);
           return JSON.stringify(
-            all.map((s) => ({ key: s.key, value: s.value, description: s.description })),
+            all.map((s) => ({
+              key: s.key,
+              value: s.value,
+              description: s.description,
+            })),
           );
         },
       }),
@@ -275,11 +304,17 @@ export class ChatToolsService {
         name: 'get_setting',
         description: 'Get a specific setting by key',
         schema: z.object({
-          key: z.string().describe('Setting key (e.g. currency, tax_rate, invoice_prefix)'),
+          key: z
+            .string()
+            .describe('Setting key (e.g. currency, tax_rate, invoice_prefix)'),
         }),
         func: async (input) => {
           const s = await this.settings.findByKey(ownerId, input.key);
-          return JSON.stringify({ key: s.key, value: s.value, description: s.description });
+          return JSON.stringify({
+            key: s.key,
+            value: s.value,
+            description: s.description,
+          });
         },
       }),
 
@@ -300,19 +335,31 @@ export class ChatToolsService {
         name: 'calculate_total',
         description: 'Preview invoice total without creating an invoice',
         schema: z.object({
-          items: z.array(z.object({
-            description: z.string(),
-            quantity: z.number(),
-            unitPrice: z.number(),
-          })).min(1),
-          taxRate: z.number().optional().describe('Tax rate % (defaults to settings)'),
-          currency: z.string().optional().describe('Currency (defaults to settings)'),
+          items: z
+            .array(
+              z.object({
+                description: z.string(),
+                quantity: z.number(),
+                unitPrice: z.number(),
+              }),
+            )
+            .min(1),
+          taxRate: z
+            .number()
+            .optional()
+            .describe('Tax rate % (defaults to settings)'),
+          currency: z
+            .string()
+            .optional()
+            .describe('Currency (defaults to settings)'),
         }),
         func: async (input) => {
-          const taxRate = input.taxRate ??
+          const taxRate =
+            input.taxRate ??
             parseFloat(await this.settings.getValue(ownerId, 'tax_rate', '15'));
-          const currency = input.currency ??
-            await this.settings.getValue(ownerId, 'currency', 'SAR');
+          const currency =
+            input.currency ??
+            (await this.settings.getValue(ownerId, 'currency', 'SAR'));
 
           const itemsCalc = input.items.map((item) => ({
             ...item,

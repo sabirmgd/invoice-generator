@@ -23,17 +23,11 @@ export class SnakeCaseNamingStrategy
     return this.toSnakeCase(propertyName);
   }
 
-  joinColumnName(
-    relationName: string,
-    referencedColumnName: string,
-  ): string {
+  joinColumnName(relationName: string, referencedColumnName: string): string {
     return this.toSnakeCase(relationName) + '_' + referencedColumnName;
   }
 
-  joinTableName(
-    firstTableName: string,
-    secondTableName: string,
-  ): string {
+  joinTableName(firstTableName: string, secondTableName: string): string {
     return firstTableName + '_' + secondTableName;
   }
 
@@ -46,6 +40,9 @@ export class SnakeCaseNamingStrategy
   }
 
   private toSnakeCase(str: string): string {
-    return str.replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '');
+    return str
+      .replace(/([A-Z])/g, '_$1')
+      .toLowerCase()
+      .replace(/^_/, '');
   }
 }

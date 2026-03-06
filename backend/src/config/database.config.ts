@@ -13,6 +13,8 @@ export const databaseConfig = registerAs('database', () => ({
   synchronize: process.env.DB_SYNC === 'true',
   logging: process.env.DB_LOGGING === 'true',
   ...(process.env.DB_SOCKET_PATH && {
-    extra: { socketPath: `${process.env.DB_SOCKET_PATH}/${process.env.CLOUD_SQL_CONNECTION_NAME}` },
+    extra: {
+      socketPath: `${process.env.DB_SOCKET_PATH}/${process.env.CLOUD_SQL_CONNECTION_NAME}`,
+    },
   }),
 }));

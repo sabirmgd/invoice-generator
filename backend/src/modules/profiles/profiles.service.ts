@@ -24,7 +24,10 @@ export class ProfilesService {
     return this.repo.save(profile);
   }
 
-  async findAll(ownerId: string, query: QueryProfileDto): Promise<PaginatedResult<Profile>> {
+  async findAll(
+    ownerId: string,
+    query: QueryProfileDto,
+  ): Promise<PaginatedResult<Profile>> {
     const qb = this.repo
       .createQueryBuilder('p')
       .where('p.ownerId = :ownerId', { ownerId })
@@ -43,7 +46,11 @@ export class ProfilesService {
     return profile;
   }
 
-  async update(ownerId: string, id: string, dto: UpdateProfileDto): Promise<Profile> {
+  async update(
+    ownerId: string,
+    id: string,
+    dto: UpdateProfileDto,
+  ): Promise<Profile> {
     const profile = await this.findOne(ownerId, id);
     if (dto.isDefault && !profile.isDefault) {
       await this.unsetDefault(ownerId, dto.type ?? profile.type);
@@ -57,11 +64,20 @@ export class ProfilesService {
     await this.repo.softRemove(profile);
   }
 
-  async findDefaultByType(ownerId: string, type: ProfileType): Promise<Profile | null> {
+  async findDefaultByType(
+    ownerId: string,
+    type: ProfileType,
+  ): Promise<Profile | null> {
     return this.repo.findOneBy({ ownerId, type, isDefault: true });
   }
 
-  private async unsetDefault(ownerId: string, type: ProfileType): Promise<void> {
-    await this.repo.update({ ownerId, type, isDefault: true }, { isDefault: false });
+  private async unsetDefault(
+    ownerId: string,
+    type: ProfileType,
+  ): Promise<void> {
+    await this.repo.update(
+      { ownerId, type, isDefault: true },
+      { isDefault: false },
+    );
   }
 }

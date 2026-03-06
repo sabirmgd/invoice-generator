@@ -4,7 +4,12 @@ import { Repository } from 'typeorm';
 import { v4 as uuid } from 'uuid';
 import { ChatAnthropic } from '@langchain/anthropic';
 import { ChatOpenAI } from '@langchain/openai';
-import { HumanMessage, AIMessage, ToolMessage, SystemMessage } from '@langchain/core/messages';
+import {
+  HumanMessage,
+  AIMessage,
+  ToolMessage,
+  SystemMessage,
+} from '@langchain/core/messages';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { ChatMessage, ChatRole } from '../../db/entities/chat-message.entity';
 import { SettingsService } from '../settings/settings.service';
@@ -46,7 +51,9 @@ export class ChatbotService {
       const saved = await this.authService.getDecryptedLlmKey(ownerId);
       if (saved) return saved;
     }
-    throw new Error('API key required — provide apiKey in body or save one via PATCH /auth/llm-key');
+    throw new Error(
+      'API key required — provide apiKey in body or save one via PATCH /auth/llm-key',
+    );
   }
 
   private createModel(provider: string, apiKey: string): BaseChatModel {
@@ -79,7 +86,12 @@ export class ChatbotService {
 
     let resolved: { apiKey: string; provider: string };
     try {
-      resolved = await this.resolveApiKey(provider, apiKey, ownerId, isAuthenticated);
+      resolved = await this.resolveApiKey(
+        provider,
+        apiKey,
+        ownerId,
+        isAuthenticated,
+      );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
       yield { type: 'error', message: msg };
@@ -88,19 +100,42 @@ export class ChatbotService {
 
     // Save user message with file metadata if present
     const fileMetadata = files?.length
-      ? { files: files.map((f) => ({ filename: f.originalname, mimeType: f.mimetype, size: f.size })) }
+      ? {
+          files: files.map((f) => ({
+            filename: f.originalname,
+            mimeType: f.mimetype,
+            size: f.size,
+          })),
+        }
       : undefined;
-    await this.saveMessage(ownerId, convId, ChatRole.USER, message, undefined, undefined, undefined, fileMetadata);
+    await this.saveMessage(
+      ownerId,
+      convId,
+      ChatRole.USER,
+      message,
+      undefined,
+      undefined,
+      undefined,
+      fileMetadata,
+    );
 
     // Process uploaded files into LangChain content blocks
     let fileBlocks: { type: string; [key: string]: unknown }[] = [];
     if (files?.length) {
       for (const file of files) {
-        yield { type: 'file_processing', filename: file.originalname, status: 'processing' };
+        yield {
+          type: 'file_processing',
+          filename: file.originalname,
+          status: 'processing',
+        };
       }
       fileBlocks = this.fileProcessor.processFiles(files);
       for (const file of files) {
-        yield { type: 'file_processing', filename: file.originalname, status: 'done' };
+        yield {
+          type: 'file_processing',
+          filename: file.originalname,
+          status: 'done',
+        };
       }
     }
 
@@ -113,9 +148,11 @@ export class ChatbotService {
 
     // Build the current user message — multimodal if files were uploaded
     if (fileBlocks.length > 0) {
-      messages.push(new HumanMessage({
-        content: [{ type: 'text', text: message }, ...fileBlocks] as any,
-      }));
+      messages.push(
+        new HumanMessage({
+          content: [{ type: 'text', text: message }, ...fileBlocks] as any,
+        }),
+      );
     } else {
       messages.push(new HumanMessage(message));
     }
@@ -130,7 +167,7 @@ export class ChatbotService {
 
       let response: AIMessage;
       try {
-        response = await modelWithTools.invoke(messages) as AIMessage;
+        response = (await modelWithTools.invoke(messages)) as AIMessage;
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Unknown error';
         this.logger.error(`LLM invoke error: ${msg}`);
@@ -147,7 +184,13 @@ export class ChatbotService {
         break;
       }
 
-      await this.saveMessage(ownerId, convId, ChatRole.ASSISTANT, '', toolCalls as Record<string, unknown>[]);
+      await this.saveMessage(
+        ownerId,
+        convId,
+        ChatRole.ASSISTANT,
+        '',
+        toolCalls as Record<string, unknown>[],
+      );
       messages.push(response);
 
       for (const tc of toolCalls) {
@@ -169,17 +212,29 @@ export class ChatbotService {
         } catch {
           parsedResult = result;
         }
-        yield { type: 'tool_result', toolName: tc.name, toolCallId: tc.id!, result: parsedResult };
+        yield {
+          type: 'tool_result',
+          toolName: tc.name,
+          toolCallId: tc.id!,
+          result: parsedResult,
+        };
 
         await this.saveMessage(
-          ownerId, convId, ChatRole.TOOL, result,
-          undefined, tc.name, tc.id,
+          ownerId,
+          convId,
+          ChatRole.TOOL,
+          result,
+          undefined,
+          tc.name,
+          tc.id,
         );
 
-        messages.push(new ToolMessage({
-          content: result,
-          tool_call_id: tc.id!,
-        }));
+        messages.push(
+          new ToolMessage({
+            content: result,
+            tool_call_id: tc.id!,
+          }),
+        );
       }
     }
 
@@ -229,7 +284,9 @@ export class ChatbotService {
     if (msg.role === ChatRole.USER) {
       const meta = msg.metadata as { files?: { filename: string }[] } | null;
       if (meta?.files?.length) {
-        const refs = meta.files.map((f) => `[Attached: ${f.filename}]`).join(', ');
+        const refs = meta.files
+          .map((f) => `[Attached: ${f.filename}]`)
+          .join(', ');
         return new HumanMessage(`${msg.content}\n${refs}`);
       }
       return new HumanMessage(msg.content);

@@ -22,16 +22,24 @@ export class ContextService {
         .join(', ');
       sections.push(`SETTINGS: ${settingsStr}`);
     } else {
-      sections.push('SETTINGS: None configured yet (defaults: Currency SAR, Tax 15%, Prefix INV)');
+      sections.push(
+        'SETTINGS: None configured yet (defaults: Currency SAR, Tax 15%, Prefix INV)',
+      );
     }
 
     // Profiles
-    const profileResult = await this.profiles.findAll(ownerId, { page: 1, limit: 50 });
+    const profileResult = await this.profiles.findAll(ownerId, {
+      page: 1,
+      limit: 50,
+    });
     if (profileResult.items.length > 0) {
       const profileLines = profileResult.items.map(
-        (p) => `[${p.type.toUpperCase()}] "${p.name}"${p.isDefault ? ' (default)' : ''} id=${p.id}`,
+        (p) =>
+          `[${p.type.toUpperCase()}] "${p.name}"${p.isDefault ? ' (default)' : ''} id=${p.id}`,
       );
-      sections.push(`PROFILES (${profileResult.pagination.total}):\n${profileLines.join('\n')}`);
+      sections.push(
+        `PROFILES (${profileResult.pagination.total}):\n${profileLines.join('\n')}`,
+      );
     } else {
       sections.push('PROFILES: None created yet');
     }
@@ -47,7 +55,10 @@ export class ContextService {
       );
 
       // Recent invoices
-      const recent = await this.invoices.findAll(ownerId, { page: 1, limit: 5 });
+      const recent = await this.invoices.findAll(ownerId, {
+        page: 1,
+        limit: 5,
+      });
       if (recent.items.length > 0) {
         const recentLines = recent.items.map(
           (inv) =>

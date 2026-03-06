@@ -108,7 +108,9 @@ async function seed() {
       await profileRepo.save(profileRepo.create(profile));
       console.log(`  Created profile: [${profile.type}] ${profile.name}`);
     } else {
-      console.log(`  Profile already exists: [${profile.type}] ${profile.name}`);
+      console.log(
+        `  Profile already exists: [${profile.type}] ${profile.name}`,
+      );
     }
   }
 

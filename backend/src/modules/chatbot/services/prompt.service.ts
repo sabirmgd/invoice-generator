@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ContextService } from './context.service';
 
-const PERSONA = `You are InvoiceBot — a direct, efficient, numbers-precise invoicing assistant.
+const PERSONA = `You are Invo — a direct, efficient, numbers-precise invoicing assistant.
 
 Your capabilities:
 - Create and manage invoices with automatic PDF generation

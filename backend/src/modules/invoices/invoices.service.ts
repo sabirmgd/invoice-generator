@@ -1,6 +1,6 @@
 import { Injectable, HttpStatus } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { QueryFailedError, Repository } from 'typeorm';
 import { Invoice } from '../../db/entities/invoice.entity';
 import { InvoiceItem } from '../../db/entities/invoice-item.entity';
 import { ProfileType } from '../../db/entities/profile.entity';
@@ -48,7 +48,8 @@ export class InvoicesService {
     }
 
     // Resolve invoice number
-    const invoiceNumber =
+    const autoNumberRequested = !dto.invoiceNumber;
+    let invoiceNumber =
       dto.invoiceNumber || (await this.generateNextNumber(ownerId));
 
     // Resolve defaults from settings
@@ -75,25 +76,49 @@ export class InvoicesService {
     const taxAmount = subtotal * (taxRate / 100);
     const total = subtotal + taxAmount;
 
-    // Create invoice
-    const invoice = this.invoiceRepo.create({
-      ownerId,
-      invoiceNumber,
-      senderProfileId: dto.senderProfileId,
-      clientProfileId: dto.clientProfileId,
-      bankProfileId,
-      issueDate: dto.issueDate,
-      dueDate: dto.dueDate,
-      currency,
-      taxRate,
-      subtotal,
-      taxAmount,
-      total,
-      notes: dto.notes,
-      items,
-    });
+    let saved: Invoice | null = null;
+    for (let attempt = 0; attempt < 3 && !saved; attempt++) {
+      const invoice = this.invoiceRepo.create({
+        ownerId,
+        invoiceNumber,
+        senderProfileId: dto.senderProfileId,
+        clientProfileId: dto.clientProfileId,
+        bankProfileId,
+        issueDate: dto.issueDate,
+        dueDate: dto.dueDate,
+        currency,
+        taxRate,
+        subtotal,
+        taxAmount,
+        total,
+        notes: dto.notes,
+        items,
+      });
 
-    const saved = await this.invoiceRepo.save(invoice);
+      try {
+        saved = await this.invoiceRepo.save(invoice);
+      } catch (error) {
+        if (!this.isInvoiceNumberUniqueViolation(error)) {
+          throw error;
+        }
+
+        if (!autoNumberRequested) {
+          throw new AppException(
+            `Invoice number "${dto.invoiceNumber}" already exists for this owner`,
+            HttpStatus.CONFLICT,
+          );
+        }
+
+        invoiceNumber = await this.generateCollisionSafeNumber(ownerId);
+      }
+    }
+
+    if (!saved) {
+      throw new AppException(
+        'Could not generate a unique invoice number. Please retry.',
+        HttpStatus.CONFLICT,
+      );
+    }
 
     // Reload to get eager relations
     const full = await this.findOne(ownerId, saved.id);
@@ -106,7 +131,10 @@ export class InvoicesService {
     return full;
   }
 
-  async findAll(ownerId: string, query: QueryInvoiceDto): Promise<PaginatedResult<Invoice>> {
+  async findAll(
+    ownerId: string,
+    query: QueryInvoiceDto,
+  ): Promise<PaginatedResult<Invoice>> {
     const qb = this.invoiceRepo
       .createQueryBuilder('inv')
       .leftJoinAndSelect('inv.senderProfile', 'sender')
@@ -201,5 +229,50 @@ export class InvoicesService {
     );
 
     return invoiceNumber;
+  }
+
+  private async generateCollisionSafeNumber(ownerId: string): Promise<string> {
+    const prefix = await this.settingsService.getValue(
+      ownerId,
+      'invoice_prefix',
+      'INV',
+    );
+    const timestamp = new Date()
+      .toISOString()
+      .replace(/[-:.TZ]/g, '')
+      .slice(0, 14);
+    const suffix = Math.floor(Math.random() * 900 + 100);
+    return `${prefix}-${timestamp}-${suffix}`;
+  }
+
+  private isInvoiceNumberUniqueViolation(error: unknown): boolean {
+    if (!(error instanceof QueryFailedError)) {
+      return false;
+    }
+
+    const driverError = (
+      error as QueryFailedError & {
+        driverError?: {
+          code?: string;
+          constraint?: string;
+          detail?: string;
+          message?: string;
+        };
+      }
+    ).driverError;
+
+    if (driverError?.code !== '23505') {
+      return false;
+    }
+
+    const constraint = (driverError.constraint ?? '').toLowerCase();
+    const detail = (driverError.detail ?? '').toLowerCase();
+    const message = (driverError.message ?? '').toLowerCase();
+
+    return (
+      constraint.includes('invoice') ||
+      detail.includes('invoice_number') ||
+      message.includes('invoice_number')
+    );
   }
 }

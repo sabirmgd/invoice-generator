@@ -1,4 +1,10 @@
-import { Entity, Column, Index, CreateDateColumn, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Entity,
+  Column,
+  Index,
+  CreateDateColumn,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 
 export enum ChatRole {
   USER = 'user',

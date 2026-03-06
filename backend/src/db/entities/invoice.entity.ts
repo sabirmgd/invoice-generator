@@ -18,12 +18,19 @@ export enum InvoiceStatus {
 }
 
 @Entity('invoices')
+@Index(
+  'idx_invoices_owner_invoice_number_unique',
+  ['ownerId', 'invoiceNumber'],
+  {
+    unique: true,
+  },
+)
 export class Invoice extends BaseEntity {
   @Column()
   @Index()
   ownerId!: string;
 
-  @Column({ unique: true })
+  @Column()
   invoiceNumber!: string;
 
   @Column({ type: 'enum', enum: InvoiceStatus, default: InvoiceStatus.DRAFT })

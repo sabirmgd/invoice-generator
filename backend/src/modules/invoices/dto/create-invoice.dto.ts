@@ -43,7 +43,9 @@ export class CreateInvoiceDto {
   @IsUUID()
   clientProfileId!: string;
 
-  @ApiPropertyOptional({ description: 'Bank profile UUID (uses default if omitted)' })
+  @ApiPropertyOptional({
+    description: 'Bank profile UUID (uses default if omitted)',
+  })
   @IsOptional()
   @IsUUID()
   bankProfileId?: string;
@@ -56,17 +58,25 @@ export class CreateInvoiceDto {
   @IsDateString()
   dueDate!: string;
 
-  @ApiPropertyOptional({ description: 'Override auto-generated invoice number' })
+  @ApiPropertyOptional({
+    description: 'Override auto-generated invoice number',
+  })
   @IsOptional()
   @IsString()
   invoiceNumber?: string;
 
-  @ApiPropertyOptional({ example: 'SAR', description: 'Defaults to system setting' })
+  @ApiPropertyOptional({
+    example: 'SAR',
+    description: 'Defaults to system setting',
+  })
   @IsOptional()
   @IsString()
   currency?: string;
 
-  @ApiPropertyOptional({ example: 15, description: 'Defaults to system setting' })
+  @ApiPropertyOptional({
+    example: 15,
+    description: 'Defaults to system setting',
+  })
   @IsOptional()
   @IsNumber()
   taxRate?: number;

@@ -2,11 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { LoggerModule } from 'nestjs-pino';
-import {
-  appConfig,
-  databaseConfig,
-  envValidationSchema,
-} from './config';
+import { appConfig, databaseConfig, envValidationSchema } from './config';
 import { SnakeCaseNamingStrategy } from './db/naming.strategy';
 import { HealthModule } from './modules/health';
 import { SettingsModule } from './modules/settings';

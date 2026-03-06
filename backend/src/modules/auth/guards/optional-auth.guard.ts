@@ -22,7 +22,9 @@ export class OptionalAuthGuard implements CanActivate {
         const decoded = await this.authService.verifyToken(token);
         const user = await this.authService.findByFirebaseUid(decoded.uid);
         if (!user) {
-          throw new UnauthorizedException('User not found — call POST /auth/verify first');
+          throw new UnauthorizedException(
+            'User not found — call POST /auth/verify first',
+          );
         }
         request.requestContext = {
           ownerId: decoded.uid,

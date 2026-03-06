@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createCipheriv, createDecipheriv, randomBytes, createHmac } from 'crypto';
+import {
+  createCipheriv,
+  createDecipheriv,
+  randomBytes,
+  createHmac,
+} from 'crypto';
 
 @Injectable()
 export class EncryptionService {
@@ -8,16 +13,12 @@ export class EncryptionService {
 
   constructor(private readonly config: ConfigService) {
     const hex = this.config.get<string>('ENCRYPTION_MASTER_KEY', '');
-    this.masterKey = hex
-      ? Buffer.from(hex, 'hex')
-      : randomBytes(32); // fallback for dev without key configured
+    this.masterKey = hex ? Buffer.from(hex, 'hex') : randomBytes(32); // fallback for dev without key configured
   }
 
   /** Derive a unique 256-bit key per user via HMAC-based KDF */
   private deriveKey(userId: string): Buffer {
-    return createHmac('sha256', this.masterKey)
-      .update(userId)
-      .digest();
+    return createHmac('sha256', this.masterKey).update(userId).digest();
   }
 
   /** Encrypt plaintext → "iv:tag:ciphertext" (all base64) */
@@ -46,9 +47,8 @@ export class EncryptionService {
     const data = Buffer.from(dataB64, 'base64');
     const decipher = createDecipheriv('aes-256-gcm', key, iv);
     decipher.setAuthTag(tag);
-    return Buffer.concat([
-      decipher.update(data),
-      decipher.final(),
-    ]).toString('utf8');
+    return Buffer.concat([decipher.update(data), decipher.final()]).toString(
+      'utf8',
+    );
   }
 }
