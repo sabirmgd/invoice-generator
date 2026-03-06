@@ -1,6 +1,6 @@
 import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { BaseEntity } from './base.entity';
-import { Invoice } from './invoice.entity';
+import type { Invoice } from './invoice.entity';
 import { Exclude } from 'class-transformer';
 
 @Entity('invoice_items')
@@ -9,7 +9,7 @@ export class InvoiceItem extends BaseEntity {
   @Exclude()
   invoiceId!: string;
 
-  @ManyToOne(() => Invoice, (invoice) => invoice.items, {
+  @ManyToOne('Invoice', 'items', {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'invoice_id' })
