@@ -10,6 +10,7 @@ import { ProfilesModule } from './modules/profiles';
 import { InvoicesModule } from './modules/invoices';
 import { AuthModule } from './modules/auth';
 import { ChatbotModule } from './modules/chatbot';
+import { RecaptchaModule } from './modules/recaptcha';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { ChatbotModule } from './modules/chatbot';
     }),
     HealthModule,
     AuthModule,
+    RecaptchaModule,
     SettingsModule,
     ProfilesModule,
     InvoicesModule,

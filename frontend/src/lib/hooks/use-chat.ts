@@ -27,11 +27,12 @@ function loadFromStorage<T>(key: string, fallback: T): T {
 export interface UseChatOptions {
   sessionId: string;
   authToken: string;
+  executeRecaptcha?: ((action: string) => Promise<string>) | null;
   onStreamChunk?: (chunk: StreamChunk) => void;
   onDone?: () => void;
 }
 
-export function useChat({ sessionId, authToken, onStreamChunk, onDone }: UseChatOptions) {
+export function useChat({ sessionId, authToken, executeRecaptcha, onStreamChunk, onDone }: UseChatOptions) {
   const [provider, setProvider] = useState<Provider>(() => loadFromStorage('invo-provider', 'anthropic'));
   const [apiKey, setApiKey] = useState(() => loadFromStorage('invo-api-key', ''));
   const [conversationId, setConversationId] = useState(() => loadFromStorage('invo-conversation-id', ''));
@@ -88,11 +89,18 @@ export function useChat({ sessionId, authToken, onStreamChunk, onDone }: UseChat
       setChatFiles([]);
 
       try {
+        // Get reCAPTCHA token if configured
+        let recaptchaToken = '';
+        if (executeRecaptcha) {
+          recaptchaToken = await executeRecaptcha('chat_send');
+        }
+
         const formData = new FormData();
         formData.set('message', trimmed);
         formData.set('provider', provider);
         if (conversationId) formData.set('conversationId', conversationId);
         if (apiKey.trim()) formData.set('apiKey', apiKey.trim());
+        if (recaptchaToken) formData.set('recaptchaToken', recaptchaToken);
         for (const file of chatFiles) formData.append('files', file);
 
         const response = await fetch(`${API_BASE}/api/v1/chat/stream`, {
@@ -183,6 +191,7 @@ export function useChat({ sessionId, authToken, onStreamChunk, onDone }: UseChat
       apiKey,
       chatFiles,
       authToken,
+      executeRecaptcha,
       appendMessage,
       appendEvent,
       onStreamChunk,

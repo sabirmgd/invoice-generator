@@ -23,4 +23,12 @@ export const envValidationSchema = Joi.object({
 
   // Encryption (optional — random key used in dev if not set)
   ENCRYPTION_MASTER_KEY: Joi.string().optional().allow(''),
+
+  // reCAPTCHA Enterprise (optional — skipped if not set)
+  RECAPTCHA_SITE_KEY: Joi.string().optional().allow(''),
+  RECAPTCHA_PROJECT_ID: Joi.string().optional().allow(''),
+  RECAPTCHA_SCORE_THRESHOLD: Joi.number().default(0.5),
+
+  // Server-side Anthropic key (optional — enables no-BYOK mode)
+  ANTHROPIC_API_KEY: Joi.string().optional().allow(''),
 });

@@ -16,10 +16,15 @@ export class SendMessageDto {
   @IsIn(['anthropic', 'openai'])
   provider!: string;
 
-  @ApiPropertyOptional({ description: 'API key (required if no saved key)' })
+  @ApiPropertyOptional({ description: 'API key (optional BYOK override)' })
   @IsOptional()
   @IsString()
   apiKey?: string;
+
+  @ApiPropertyOptional({ description: 'reCAPTCHA Enterprise token' })
+  @IsOptional()
+  @IsString()
+  recaptchaToken?: string;
 
   @Allow()
   files?: any;

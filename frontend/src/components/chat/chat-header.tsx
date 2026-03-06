@@ -2,6 +2,8 @@
 
 import { Provider } from '@/lib/types';
 
+const IS_SERVER_MODE = !!process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
+
 interface ChatHeaderProps {
   provider: Provider;
   onProviderChange: (provider: Provider) => void;
@@ -29,22 +31,26 @@ export function ChatHeader({
       </div>
 
       <div className="flex items-center gap-2">
-        <select
-          value={provider}
-          onChange={(e) => onProviderChange(e.target.value as Provider)}
-          className="h-7 rounded-md border border-border bg-surface px-2 text-xs text-text-secondary focus:outline-none"
-        >
-          <option value="anthropic">Anthropic</option>
-          <option value="openai">OpenAI</option>
-        </select>
+        {!IS_SERVER_MODE && (
+          <>
+            <select
+              value={provider}
+              onChange={(e) => onProviderChange(e.target.value as Provider)}
+              className="h-7 rounded-md border border-border bg-surface px-2 text-xs text-text-secondary focus:outline-none"
+            >
+              <option value="anthropic">Anthropic</option>
+              <option value="openai">OpenAI</option>
+            </select>
 
-        <input
-          type="password"
-          value={apiKey}
-          onChange={(e) => onApiKeyChange(e.target.value)}
-          placeholder="API Key"
-          className="h-7 w-28 rounded-md border border-border bg-surface px-2 text-xs text-text-secondary focus:outline-none focus:ring-1 focus:ring-primary"
-        />
+            <input
+              type="password"
+              value={apiKey}
+              onChange={(e) => onApiKeyChange(e.target.value)}
+              placeholder="API Key"
+              className="h-7 w-28 rounded-md border border-border bg-surface px-2 text-xs text-text-secondary focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+          </>
+        )}
 
         <button
           type="button"

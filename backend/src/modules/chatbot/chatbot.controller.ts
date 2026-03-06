@@ -25,6 +25,7 @@ import * as path from 'path';
 import { ChatbotService } from './chatbot.service';
 import { SendMessageDto } from './dto/chat-message.dto';
 import { FileProcessorService } from './services/file-processor.service';
+import { RecaptchaService } from '../recaptcha/recaptcha.service';
 import { OptionalAuthGuard } from '../auth/guards/optional-auth.guard';
 import { OwnerId } from '../auth/decorators/owner-id.decorator';
 import { RequestContext } from '../auth/interfaces/request-context';
@@ -47,6 +48,7 @@ export class ChatbotController {
   constructor(
     private readonly chatbotService: ChatbotService,
     private readonly fileProcessor: FileProcessorService,
+    private readonly recaptchaService: RecaptchaService,
   ) {}
 
   @Post('stream')
@@ -88,6 +90,9 @@ export class ChatbotController {
     @Body() dto: SendMessageDto,
     @UploadedFiles() files?: Express.Multer.File[],
   ) {
+    // Verify reCAPTCHA before processing (skipped if not configured)
+    await this.recaptchaService.verify(dto.recaptchaToken, 'chat_send');
+
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');

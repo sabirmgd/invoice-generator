@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useRef, useState } from 'react';
+import { useGoogleReCaptcha } from 'react-google-recaptcha-v3';
 import { useApp } from '@/lib/context/app-context';
 import { useChat } from '@/lib/hooks/use-chat';
 import { Invoice, StreamChunk } from '@/lib/types';
@@ -12,6 +13,7 @@ import Link from 'next/link';
 
 export default function Home() {
   const { sessionId, authToken, refreshWorkspaceData, invoices, logoDataUrl } = useApp();
+  const { executeRecaptcha } = useGoogleReCaptcha();
   const [previewInvoice, setPreviewInvoice] = useState<Invoice | null>(null);
   const invoiceCreated = useRef(false);
 
@@ -35,6 +37,7 @@ export default function Home() {
   const chat = useChat({
     sessionId,
     authToken,
+    executeRecaptcha: executeRecaptcha ?? undefined,
     onStreamChunk: handleStreamChunk,
     onDone: handleDone,
   });

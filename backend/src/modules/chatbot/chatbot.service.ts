@@ -11,6 +11,7 @@ import {
   SystemMessage,
 } from '@langchain/core/messages';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
+import { ConfigService } from '@nestjs/config';
 import { ChatMessage, ChatRole } from '../../db/entities/chat-message.entity';
 import { SettingsService } from '../settings/settings.service';
 import { AuthService } from '../auth/auth.service';
@@ -28,15 +29,23 @@ type LangChainMessage = SystemMessage | HumanMessage | AIMessage | ToolMessage;
 export class ChatbotService {
   private readonly logger = new Logger(ChatbotService.name);
 
+  private readonly serverAnthropicKey: string;
+
   constructor(
     @InjectRepository(ChatMessage)
     private readonly messageRepo: Repository<ChatMessage>,
+    private readonly configService: ConfigService,
     private readonly settingsService: SettingsService,
     private readonly authService: AuthService,
     private readonly chatTools: ChatToolsService,
     private readonly promptService: PromptService,
     private readonly fileProcessor: FileProcessorService,
-  ) {}
+  ) {
+    this.serverAnthropicKey = this.configService.get<string>(
+      'app.anthropicApiKey',
+      '',
+    );
+  }
 
   async resolveApiKey(
     provider: string,
@@ -44,12 +53,18 @@ export class ChatbotService {
     ownerId?: string,
     isAuthenticated?: boolean,
   ): Promise<{ apiKey: string; provider: string }> {
+    // 1. BYOK: user-provided key takes priority
     if (bodyApiKey) {
       return { apiKey: bodyApiKey, provider };
     }
+    // 2. Authenticated user with saved key
     if (isAuthenticated && ownerId) {
       const saved = await this.authService.getDecryptedLlmKey(ownerId);
       if (saved) return saved;
+    }
+    // 3. Server-side Anthropic key (no BYOK needed)
+    if (this.serverAnthropicKey) {
+      return { apiKey: this.serverAnthropicKey, provider: 'anthropic' };
     }
     throw new Error(
       'API key required — provide apiKey in body or save one via PATCH /auth/llm-key',
@@ -60,7 +75,7 @@ export class ChatbotService {
     if (provider === 'anthropic') {
       return new ChatAnthropic({
         apiKey,
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-5-20250929',
         maxTokens: 4096,
       });
     }
