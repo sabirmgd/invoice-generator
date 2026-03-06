@@ -5,7 +5,7 @@ import { SwaggerModule } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
 import { DataSource } from 'typeorm';
 import helmet from 'helmet';
-import * as compression from 'compression';
+import compression from 'compression';
 import { AppModule } from './app.module';
 import { swaggerConfig } from './config';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
