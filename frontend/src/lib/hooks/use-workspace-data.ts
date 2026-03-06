@@ -37,8 +37,8 @@ export function useWorkspaceData(sessionId: string, authToken: string) {
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [error, setError] = useState('');
 
-  const refreshWorkspaceData = useCallback(async () => {
-    if (!sessionId) return;
+  const refreshWorkspaceData = useCallback(async (): Promise<{ invoices: Invoice[] } | undefined> => {
+    if (!sessionId) return undefined;
 
     setIsLoadingData(true);
     setError('');
@@ -53,8 +53,10 @@ export function useWorkspaceData(sessionId: string, authToken: string) {
       setInvoices(invoicePayload.items);
       setProfiles(profilePayload.items);
       setSettings(settingPayload);
+      return { invoices: invoicePayload.items };
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unexpected error');
+      return undefined;
     } finally {
       setIsLoadingData(false);
     }

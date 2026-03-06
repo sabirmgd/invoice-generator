@@ -12,7 +12,7 @@ interface InvoiceListProps {
   invoices: Invoice[];
   sessionId: string;
   authToken: string;
-  onRefresh: () => Promise<void>;
+  onRefresh: () => Promise<unknown>;
 }
 
 function formatMoney(amount: number, currency: string): string {
@@ -25,9 +25,11 @@ function formatMoney(amount: number, currency: string): string {
 
 export function InvoiceList({ invoices, sessionId, authToken, onRefresh }: InvoiceListProps) {
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   async function handleStatusUpdate(invoiceId: string, status: InvoiceStatus) {
     setError('');
+    setSuccess('');
     try {
       const headers = new Headers({
         ...buildAuthHeaders(sessionId, authToken || undefined),
@@ -40,6 +42,8 @@ export function InvoiceList({ invoices, sessionId, authToken, onRefresh }: Invoi
       });
       await parseApiResponse<Invoice>(response);
       await onRefresh();
+      setSuccess(`Status updated to "${status}"`);
+      setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update status');
     }
@@ -96,6 +100,11 @@ export function InvoiceList({ invoices, sessionId, authToken, onRefresh }: Invoi
       {error && (
         <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
+        </div>
+      )}
+      {success && (
+        <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+          {success}
         </div>
       )}
 

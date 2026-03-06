@@ -24,7 +24,7 @@ export function ChatMessageList({ messages }: ChatMessageListProps) {
             <p className="mt-2 text-sm text-text-secondary">
               Create professional invoices by chatting. Try something like:
             </p>
-            <p className="mt-3 rounded-lg bg-surface px-4 py-2 font-mono text-xs text-foreground">
+            <p className="mt-3 rounded-lg bg-surface px-4 py-2 text-xs text-foreground">
               Create a sender profile for Acme LLC, then draft an invoice for 10 hours of consulting at $150/hour.
             </p>
           </div>

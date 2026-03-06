@@ -12,19 +12,22 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { Response } from 'express';
-import * as path from 'path';
 import { InvoicesService } from './invoices.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { UpdateInvoiceStatusDto } from './dto/update-invoice-status.dto';
 import { QueryInvoiceDto } from './dto/query-invoice.dto';
 import { OptionalAuthGuard } from '../auth/guards/optional-auth.guard';
 import { OwnerId } from '../auth/decorators/owner-id.decorator';
+import { PdfService } from '../pdf/pdf.service';
 
 @ApiTags('Invoices')
 @Controller('api/v1/invoices')
 @UseGuards(OptionalAuthGuard)
 export class InvoicesController {
-  constructor(private readonly invoicesService: InvoicesService) {}
+  constructor(
+    private readonly invoicesService: InvoicesService,
+    private readonly pdfService: PdfService,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Create an invoice and auto-generate PDF' })
@@ -55,18 +58,20 @@ export class InvoicesController {
   }
 
   @Get(':id/pdf')
-  @ApiOperation({ summary: 'Download invoice PDF' })
+  @ApiOperation({ summary: 'Download invoice PDF (generated on-demand)' })
   async downloadPdf(
     @OwnerId() ownerId: string,
     @Param('id', ParseUUIDPipe) id: string,
     @Res() res: Response,
   ) {
-    const pdfPath = await this.invoicesService.getPdfPath(ownerId, id);
-    const filename = path.basename(pdfPath);
+    const invoice = await this.invoicesService.findOne(ownerId, id);
+    const pdfBuffer = await this.pdfService.generateInvoicePdf(invoice);
+
     res.set({
       'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Content-Disposition': `attachment; filename="${invoice.invoiceNumber}.pdf"`,
+      'Content-Length': pdfBuffer.length.toString(),
     });
-    res.sendFile(pdfPath);
+    res.end(pdfBuffer);
   }
 }

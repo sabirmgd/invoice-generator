@@ -6,7 +6,7 @@ import { Setting } from '@/lib/types';
 interface SettingsFormProps {
   settings: Setting[];
   apiFetch: <T>(path: string, init?: RequestInit) => Promise<T>;
-  onSaved: () => Promise<void>;
+  onSaved: () => Promise<unknown>;
 }
 
 export function SettingsForm({ settings, apiFetch, onSaved }: SettingsFormProps) {

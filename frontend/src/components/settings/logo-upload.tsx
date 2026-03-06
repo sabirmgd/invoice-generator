@@ -6,7 +6,7 @@ import { Setting } from '@/lib/types';
 interface LogoUploadProps {
   logoDataUrl: string;
   apiFetch: <T>(path: string, init?: RequestInit) => Promise<T>;
-  onSaved: () => Promise<void>;
+  onSaved: () => Promise<unknown>;
 }
 
 function fileToDataUrl(file: File): Promise<string> {

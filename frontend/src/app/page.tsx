@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useApp } from '@/lib/context/app-context';
 import { useChat } from '@/lib/hooks/use-chat';
 import { Invoice, StreamChunk } from '@/lib/types';
@@ -13,26 +13,24 @@ import Link from 'next/link';
 export default function Home() {
   const { sessionId, authToken, refreshWorkspaceData, invoices, logoDataUrl } = useApp();
   const [previewInvoice, setPreviewInvoice] = useState<Invoice | null>(null);
+  const invoiceCreated = useRef(false);
 
   const handleStreamChunk = useCallback(
     (chunk: StreamChunk) => {
       if (chunk.type === 'tool_result' && chunk.toolName === 'create_invoice') {
-        const result = chunk.result as { invoice?: Invoice } | undefined;
-        if (result?.invoice) {
-          setPreviewInvoice(result.invoice);
-        }
+        invoiceCreated.current = true;
       }
     },
     [],
   );
 
-  const handleDone = useCallback(() => {
-    void refreshWorkspaceData();
-    // Show the latest invoice in preview if none is shown
-    if (!previewInvoice && invoices.length > 0) {
-      setPreviewInvoice(invoices[0]);
+  const handleDone = useCallback(async () => {
+    const data = await refreshWorkspaceData();
+    if (invoiceCreated.current && data?.invoices && data.invoices.length > 0) {
+      setPreviewInvoice(data.invoices[0]);
+      invoiceCreated.current = false;
     }
-  }, [refreshWorkspaceData, previewInvoice, invoices]);
+  }, [refreshWorkspaceData]);
 
   const chat = useChat({
     sessionId,

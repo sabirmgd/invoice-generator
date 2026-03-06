@@ -123,10 +123,9 @@ export class InvoicesService {
     // Reload to get eager relations
     const full = await this.findOne(ownerId, saved.id);
 
-    // Generate PDF
-    const pdfPath = await this.pdfService.generateInvoicePdf(full);
-    full.pdfPath = pdfPath;
-    await this.invoiceRepo.update(full.id, { pdfPath });
+    // Mark PDF as available (generated on-demand at download time)
+    full.pdfPath = 'on-demand';
+    await this.invoiceRepo.update(full.id, { pdfPath: 'on-demand' });
 
     return full;
   }
@@ -170,17 +169,6 @@ export class InvoicesService {
     invoice.status = dto.status;
     await this.invoiceRepo.save(invoice);
     return this.findOne(ownerId, id);
-  }
-
-  async getPdfPath(ownerId: string, id: string): Promise<string> {
-    const invoice = await this.findOne(ownerId, id);
-    if (!invoice.pdfPath) {
-      throw new AppException(
-        'PDF not yet generated for this invoice',
-        HttpStatus.NOT_FOUND,
-      );
-    }
-    return invoice.pdfPath;
   }
 
   async getSummary(ownerId: string): Promise<{

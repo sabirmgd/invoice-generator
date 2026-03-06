@@ -41,7 +41,7 @@ interface ProfileFormProps {
   sessionId: string;
   authToken: string;
   apiFetch: <T>(path: string, init?: RequestInit) => Promise<T>;
-  onCreated: () => Promise<void>;
+  onCreated: () => Promise<unknown>;
 }
 
 export function ProfileForm({ apiFetch, onCreated }: ProfileFormProps) {
@@ -105,7 +105,7 @@ export function ProfileForm({ apiFetch, onCreated }: ProfileFormProps) {
 
       <form onSubmit={handleSubmit} className="mt-3 grid gap-2.5">
         <div className="grid gap-2.5 sm:grid-cols-2">
-          <label className="flex flex-col gap-1 text-xs text-text-secondary">
+          <label className="flex flex-col gap-1 text-sm text-foreground/70">
             Type
             <select
               value={form.type}
@@ -118,7 +118,7 @@ export function ProfileForm({ apiFetch, onCreated }: ProfileFormProps) {
             </select>
           </label>
 
-          <label className="flex flex-col gap-1 text-xs text-text-secondary">
+          <label className="flex flex-col gap-1 text-sm text-foreground/70">
             Name *
             <input
               value={form.name}
@@ -131,7 +131,7 @@ export function ProfileForm({ apiFetch, onCreated }: ProfileFormProps) {
         </div>
 
         <div className="grid gap-2.5 sm:grid-cols-2">
-          <label className="flex flex-col gap-1 text-xs text-text-secondary">
+          <label className="flex flex-col gap-1 text-sm text-foreground/70">
             Company
             <input
               value={form.companyName}
@@ -139,7 +139,7 @@ export function ProfileForm({ apiFetch, onCreated }: ProfileFormProps) {
               className="h-9 rounded-lg border border-border bg-background px-2 text-sm"
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs text-text-secondary">
+          <label className="flex flex-col gap-1 text-sm text-foreground/70">
             Email
             <input
               type="email"
@@ -151,7 +151,7 @@ export function ProfileForm({ apiFetch, onCreated }: ProfileFormProps) {
         </div>
 
         <div className="grid gap-2.5 sm:grid-cols-2">
-          <label className="flex flex-col gap-1 text-xs text-text-secondary">
+          <label className="flex flex-col gap-1 text-sm text-foreground/70">
             Phone
             <input
               value={form.phone}
@@ -159,7 +159,7 @@ export function ProfileForm({ apiFetch, onCreated }: ProfileFormProps) {
               className="h-9 rounded-lg border border-border bg-background px-2 text-sm"
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs text-text-secondary">
+          <label className="flex flex-col gap-1 text-sm text-foreground/70">
             Tax ID
             <input
               value={form.taxId}
@@ -170,7 +170,7 @@ export function ProfileForm({ apiFetch, onCreated }: ProfileFormProps) {
         </div>
 
         <div className="grid gap-2.5 sm:grid-cols-2">
-          <label className="flex flex-col gap-1 text-xs text-text-secondary">
+          <label className="flex flex-col gap-1 text-sm text-foreground/70">
             Address
             <input
               value={form.addressLine1}
@@ -178,7 +178,7 @@ export function ProfileForm({ apiFetch, onCreated }: ProfileFormProps) {
               className="h-9 rounded-lg border border-border bg-background px-2 text-sm"
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs text-text-secondary">
+          <label className="flex flex-col gap-1 text-sm text-foreground/70">
             City
             <input
               value={form.city}
@@ -188,7 +188,7 @@ export function ProfileForm({ apiFetch, onCreated }: ProfileFormProps) {
           </label>
         </div>
 
-        <label className="flex flex-col gap-1 text-xs text-text-secondary">
+        <label className="flex flex-col gap-1 text-sm text-foreground/70">
           Country
           <input
             value={form.country}
@@ -200,7 +200,7 @@ export function ProfileForm({ apiFetch, onCreated }: ProfileFormProps) {
         {showBankFields && (
           <>
             <div className="grid gap-2.5 sm:grid-cols-2">
-              <label className="flex flex-col gap-1 text-xs text-text-secondary">
+              <label className="flex flex-col gap-1 text-sm text-foreground/70">
                 Bank Name
                 <input
                   value={form.bankName}
@@ -208,7 +208,7 @@ export function ProfileForm({ apiFetch, onCreated }: ProfileFormProps) {
                   className="h-9 rounded-lg border border-border bg-background px-2 text-sm"
                 />
               </label>
-              <label className="flex flex-col gap-1 text-xs text-text-secondary">
+              <label className="flex flex-col gap-1 text-sm text-foreground/70">
                 Account Holder
                 <input
                   value={form.accountHolder}
@@ -218,7 +218,7 @@ export function ProfileForm({ apiFetch, onCreated }: ProfileFormProps) {
               </label>
             </div>
             <div className="grid gap-2.5 sm:grid-cols-2">
-              <label className="flex flex-col gap-1 text-xs text-text-secondary">
+              <label className="flex flex-col gap-1 text-sm text-foreground/70">
                 IBAN
                 <input
                   value={form.iban}
@@ -226,7 +226,7 @@ export function ProfileForm({ apiFetch, onCreated }: ProfileFormProps) {
                   className="h-9 rounded-lg border border-border bg-background px-2 text-sm"
                 />
               </label>
-              <label className="flex flex-col gap-1 text-xs text-text-secondary">
+              <label className="flex flex-col gap-1 text-sm text-foreground/70">
                 SWIFT
                 <input
                   value={form.swiftCode}
@@ -238,7 +238,7 @@ export function ProfileForm({ apiFetch, onCreated }: ProfileFormProps) {
           </>
         )}
 
-        <label className="inline-flex items-center gap-2 text-xs text-text-secondary">
+        <label className="inline-flex items-center gap-2 text-sm text-foreground/70">
           <input
             type="checkbox"
             checked={form.isDefault}

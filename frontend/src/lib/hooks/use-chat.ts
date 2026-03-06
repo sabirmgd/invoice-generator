@@ -1,10 +1,28 @@
 'use client';
 
-import { FormEvent, useState, useCallback } from 'react';
+import { FormEvent, useState, useCallback, useEffect } from 'react';
 import { buildAuthHeaders, getApiBaseUrl } from '@/lib/api';
 import { ChatUiEvent, ChatUiMessage, Provider, StreamChunk } from '@/lib/types';
 
 const API_BASE = getApiBaseUrl();
+
+const STORAGE_KEYS = {
+  apiKey: 'invo-api-key',
+  provider: 'invo-provider',
+  conversationId: 'invo-conversation-id',
+  chatMessages: 'invo-chat-messages',
+} as const;
+
+function loadFromStorage<T>(key: string, fallback: T): T {
+  if (typeof window === 'undefined') return fallback;
+  try {
+    const stored = localStorage.getItem(key);
+    if (stored === null) return fallback;
+    return JSON.parse(stored) as T;
+  } catch {
+    return fallback;
+  }
+}
 
 export interface UseChatOptions {
   sessionId: string;
@@ -14,15 +32,21 @@ export interface UseChatOptions {
 }
 
 export function useChat({ sessionId, authToken, onStreamChunk, onDone }: UseChatOptions) {
-  const [provider, setProvider] = useState<Provider>('anthropic');
-  const [apiKey, setApiKey] = useState('');
-  const [conversationId, setConversationId] = useState('');
+  const [provider, setProvider] = useState<Provider>(() => loadFromStorage('invo-provider', 'anthropic'));
+  const [apiKey, setApiKey] = useState(() => loadFromStorage('invo-api-key', ''));
+  const [conversationId, setConversationId] = useState(() => loadFromStorage('invo-conversation-id', ''));
   const [chatInput, setChatInput] = useState('');
   const [chatFiles, setChatFiles] = useState<File[]>([]);
-  const [chatMessages, setChatMessages] = useState<ChatUiMessage[]>([]);
+  const [chatMessages, setChatMessages] = useState<ChatUiMessage[]>(() => loadFromStorage('invo-chat-messages', []));
   const [chatEvents, setChatEvents] = useState<ChatUiEvent[]>([]);
   const [isSendingChat, setIsSendingChat] = useState(false);
   const [chatError, setChatError] = useState('');
+
+  // Persist to localStorage on change
+  useEffect(() => { localStorage.setItem(STORAGE_KEYS.apiKey, JSON.stringify(apiKey)); }, [apiKey]);
+  useEffect(() => { localStorage.setItem(STORAGE_KEYS.provider, JSON.stringify(provider)); }, [provider]);
+  useEffect(() => { localStorage.setItem(STORAGE_KEYS.conversationId, JSON.stringify(conversationId)); }, [conversationId]);
+  useEffect(() => { localStorage.setItem(STORAGE_KEYS.chatMessages, JSON.stringify(chatMessages)); }, [chatMessages]);
 
   const appendEvent = useCallback((label: string) => {
     setChatEvents((prev) => {
@@ -45,6 +69,8 @@ export function useChat({ sessionId, authToken, onStreamChunk, onDone }: UseChat
     setConversationId('');
     setChatMessages([]);
     setChatEvents([]);
+    localStorage.removeItem(STORAGE_KEYS.conversationId);
+    localStorage.removeItem(STORAGE_KEYS.chatMessages);
   }, []);
 
   const handleSendChat = useCallback(
@@ -58,6 +84,8 @@ export function useChat({ sessionId, authToken, onStreamChunk, onDone }: UseChat
       setIsSendingChat(true);
 
       appendMessage('user', trimmed);
+      setChatInput('');
+      setChatFiles([]);
 
       try {
         const formData = new FormData();
@@ -137,8 +165,6 @@ export function useChat({ sessionId, authToken, onStreamChunk, onDone }: UseChat
         const trailing = buffer.trim();
         if (trailing) processRawEvent(trailing);
 
-        setChatInput('');
-        setChatFiles([]);
         onDone?.();
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Unexpected error';

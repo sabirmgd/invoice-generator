@@ -1,29 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import * as PDFDocument from 'pdfkit';
-import * as fs from 'fs';
-import * as path from 'path';
 import { Invoice } from '../../db/entities/invoice.entity';
 import { SettingsService } from '../settings/settings.service';
 
 @Injectable()
 export class PdfService {
-  private readonly outputDir: string;
+  constructor(private readonly settingsService: SettingsService) {}
 
-  constructor(
-    private readonly config: ConfigService,
-    private readonly settingsService: SettingsService,
-  ) {
-    this.outputDir = this.config.get<string>(
-      'app.pdfOutputDir',
-      './generated/invoices',
-    );
-    fs.mkdirSync(this.outputDir, { recursive: true });
-  }
-
-  async generateInvoicePdf(invoice: Invoice): Promise<string> {
-    const filename = `${invoice.invoiceNumber}.pdf`;
-    const filePath = path.resolve(this.outputDir, filename);
+  async generateInvoicePdf(invoice: Invoice): Promise<Buffer> {
     const logoDataUrl = await this.settingsService.getValue(
       invoice.ownerId,
       'invoice_logo_data_url',
@@ -32,9 +16,11 @@ export class PdfService {
 
     return new Promise((resolve, reject) => {
       const doc = new PDFDocument({ size: 'A4', margin: 50 });
-      const stream = fs.createWriteStream(filePath);
+      const chunks: Buffer[] = [];
 
-      doc.pipe(stream);
+      doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
 
       // Ensure stable white background across PDF viewers.
       doc.rect(0, 0, doc.page.width, doc.page.height).fill('#ffffff');
@@ -53,9 +39,6 @@ export class PdfService {
       this.drawFooter(doc);
 
       doc.end();
-
-      stream.on('finish', () => resolve(filePath));
-      stream.on('error', reject);
     });
   }
 
