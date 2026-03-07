@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import * as PDFDocument from 'pdfkit';
+import PDFDocument from 'pdfkit';
 import { Invoice } from '../../db/entities/invoice.entity';
 import { SettingsService } from '../settings/settings.service';
 

@@ -12,7 +12,7 @@ import { InvoicePreview } from '@/components/invoice/invoice-preview';
 import Link from 'next/link';
 
 export default function Home() {
-  const { sessionId, authToken, refreshWorkspaceData, invoices, logoDataUrl } = useApp();
+  const { sessionId, authToken, refreshWorkspaceData, invoices } = useApp();
   const { executeRecaptcha } = useGoogleReCaptcha();
   const [previewInvoice, setPreviewInvoice] = useState<Invoice | null>(null);
   const invoiceCreated = useRef(false);
@@ -74,10 +74,7 @@ export default function Home() {
       {/* Invoice Preview (40%) — hidden on mobile */}
       <div className="hidden flex-col lg:flex lg:flex-[2]">
         <div className="flex-1 overflow-y-auto rounded-xl">
-          <InvoicePreview
-            invoice={previewInvoice}
-            logoDataUrl={logoDataUrl}
-          />
+          <InvoicePreview invoice={previewInvoice} />
         </div>
 
         {/* Quick actions under preview */}

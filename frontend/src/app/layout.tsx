@@ -1,15 +1,15 @@
 import type { Metadata } from 'next';
-import { IBM_Plex_Mono, Space_Grotesk } from 'next/font/google';
+import { Inter, JetBrains_Mono } from 'next/font/google';
 import { Providers } from './providers';
 import './globals.css';
 
-const spaceGrotesk = Space_Grotesk({
-  variable: '--font-space-grotesk',
+const inter = Inter({
+  variable: '--font-inter',
   subsets: ['latin'],
 });
 
-const ibmPlexMono = IBM_Plex_Mono({
-  variable: '--font-ibm-plex-mono',
+const jetbrainsMono = JetBrains_Mono({
+  variable: '--font-jetbrains-mono',
   subsets: ['latin'],
   weight: ['400', '500', '600'],
 });
@@ -34,7 +34,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${spaceGrotesk.variable} ${ibmPlexMono.variable} antialiased`}>
+      <body className={`${inter.variable} ${jetbrainsMono.variable} antialiased`}>
         <Providers>{children}</Providers>
       </body>
     </html>
