@@ -108,9 +108,11 @@ jobs:
       - name: Build and push frontend image
         env:
           NEXT_PUBLIC_API_BASE_URL: ${{ secrets.BACKEND_URL }}
+          NEXT_PUBLIC_RECAPTCHA_SITE_KEY: 6LeijoEsAAAAAFAteQjTJiRn54fN14qQ3_wOyceV
           SHA_TAG: ${{ github.sha }}
         run: |
           docker build --build-arg "NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL" \
+                        --build-arg "NEXT_PUBLIC_RECAPTCHA_SITE_KEY=$NEXT_PUBLIC_RECAPTCHA_SITE_KEY" \
                         -t "$REGISTRY/invoice-generator-frontend:$SHA_TAG" \
                         -t "$REGISTRY/invoice-generator-frontend:latest" \
                         frontend/
