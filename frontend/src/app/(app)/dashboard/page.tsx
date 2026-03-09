@@ -18,15 +18,20 @@ export default function DashboardPage() {
 
   const currency = settingsByKey.currency || 'USD';
 
-  const fetchDashboard = useCallback(() => {
-    setLoading(true);
-    setError('');
-    apiFetch<DashboardAnalytics>('/api/v1/analytics/dashboard')
-      .then(setData)
-      .catch((err) => {
-        setError(err instanceof Error ? err.message : 'Failed to load dashboard');
-      })
-      .finally(() => setLoading(false));
+  const fetchDashboard = useCallback(async () => {
+    try {
+      const result = await apiFetch<DashboardAnalytics>(
+        '/api/v1/analytics/dashboard',
+      );
+      setData(result);
+      setError('');
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Failed to load dashboard',
+      );
+    } finally {
+      setLoading(false);
+    }
   }, [apiFetch]);
 
   useEffect(() => {
