@@ -225,12 +225,41 @@ export interface ReminderConfig {
   lateFeeGraceDays: number;
 }
 
+export type ExpenseCategory =
+  | 'office'
+  | 'travel'
+  | 'software'
+  | 'marketing'
+  | 'salary'
+  | 'utilities'
+  | 'equipment'
+  | 'meals'
+  | 'professional_services'
+  | 'other';
+
+export interface Expense {
+  id: string;
+  ownerId: string;
+  category: ExpenseCategory;
+  description: string;
+  amount: number;
+  currency: string;
+  date: string;
+  vendor?: string;
+  receiptUrl?: string;
+  taxDeductible: boolean;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface DashboardAnalytics {
   summary: {
     totalRevenue: number;
     outstandingAmount: number;
     overdueCount: number;
     estimatesPending: number;
+    totalExpenses: number;
   };
   revenueByMonth: Array<{
     month: string;
@@ -262,5 +291,10 @@ export interface DashboardAnalytics {
     clientId: string;
     totalRevenue: number;
     invoiceCount: number;
+  }>;
+  expensesByCategory: Array<{
+    category: string;
+    total: number;
+    count: number;
   }>;
 }

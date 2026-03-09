@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Invoice } from '../../db/entities/invoice.entity';
 import { Estimate, EstimateStatus } from '../../db/entities/estimate.entity';
+import { Expense } from '../../db/entities/expense.entity';
 import {
   DashboardAnalytics,
   SummaryCards,
@@ -11,6 +12,7 @@ import {
   EstimateConversion,
   RecentActivityItem,
   TopClient,
+  ExpensesByCategory,
 } from './interfaces/dashboard-analytics.interface';
 
 @Injectable()
@@ -20,6 +22,8 @@ export class AnalyticsService {
     private readonly invoiceRepo: Repository<Invoice>,
     @InjectRepository(Estimate)
     private readonly estimateRepo: Repository<Estimate>,
+    @InjectRepository(Expense)
+    private readonly expenseRepo: Repository<Expense>,
   ) {}
 
   async getDashboard(ownerId: string): Promise<DashboardAnalytics> {
@@ -30,6 +34,7 @@ export class AnalyticsService {
       estimateConversion,
       recentActivity,
       topClients,
+      expensesByCategory,
     ] = await Promise.all([
       this.getSummaryCards(ownerId),
       this.getRevenueByMonth(ownerId),
@@ -37,6 +42,7 @@ export class AnalyticsService {
       this.getEstimateConversion(ownerId),
       this.getRecentActivity(ownerId),
       this.getTopClients(ownerId),
+      this.getExpensesByCategory(ownerId),
     ]);
 
     return {
@@ -46,11 +52,12 @@ export class AnalyticsService {
       estimateConversion,
       recentActivity,
       topClients,
+      expensesByCategory,
     };
   }
 
   private async getSummaryCards(ownerId: string): Promise<SummaryCards> {
-    const [revenueResult, outstandingResult, estimatesPending] =
+    const [revenueResult, outstandingResult, estimatesPending, expenseResult] =
       await Promise.all([
         this.invoiceRepo
           .createQueryBuilder('inv')
@@ -75,6 +82,14 @@ export class AnalyticsService {
         this.estimateRepo.count({
           where: { ownerId, status: EstimateStatus.SENT },
         }),
+
+        this.expenseRepo
+          .createQueryBuilder('exp')
+          .select('COALESCE(SUM(exp.amount), 0)', 'totalExpenses')
+          .where('exp.ownerId = :ownerId', { ownerId })
+          .andWhere(`exp.date >= DATE_TRUNC('month', CURRENT_DATE)`)
+          .andWhere('exp.deletedAt IS NULL')
+          .getRawOne<{ totalExpenses: string }>(),
       ]);
 
     return {
@@ -82,6 +97,7 @@ export class AnalyticsService {
       outstandingAmount: parseFloat(outstandingResult?.outstanding || '0'),
       overdueCount: parseInt(outstandingResult?.overdueCount || '0', 10),
       estimatesPending,
+      totalExpenses: parseFloat(expenseResult?.totalExpenses || '0'),
     };
   }
 
@@ -259,6 +275,27 @@ export class AnalyticsService {
       clientName: r.clientName || 'Unknown',
       totalRevenue: parseFloat(r.totalRevenue),
       invoiceCount: parseInt(r.invoiceCount, 10),
+    }));
+  }
+
+  private async getExpensesByCategory(
+    ownerId: string,
+  ): Promise<ExpensesByCategory[]> {
+    const raw = await this.expenseRepo
+      .createQueryBuilder('exp')
+      .select('exp.category', 'category')
+      .addSelect('COALESCE(SUM(exp.amount), 0)', 'total')
+      .addSelect('COUNT(*)', 'count')
+      .where('exp.ownerId = :ownerId', { ownerId })
+      .andWhere('exp.deletedAt IS NULL')
+      .groupBy('exp.category')
+      .orderBy('total', 'DESC')
+      .getRawMany<{ category: string; total: string; count: string }>();
+
+    return raw.map((r) => ({
+      category: r.category,
+      total: parseFloat(r.total),
+      count: parseInt(r.count, 10),
     }));
   }
 }

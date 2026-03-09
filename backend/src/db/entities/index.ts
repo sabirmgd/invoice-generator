@@ -7,3 +7,4 @@ export { User, AuthProvider } from './user.entity';
 export { ChatMessage, ChatRole } from './chat-message.entity';
 export { Estimate, EstimateStatus } from './estimate.entity';
 export { EstimateItem } from './estimate-item.entity';
+export { Expense, ExpenseCategory } from './expense.entity';

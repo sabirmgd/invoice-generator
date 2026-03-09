@@ -6,6 +6,7 @@ interface SummaryCardsProps {
     outstandingAmount: number;
     overdueCount: number;
     estimatesPending: number;
+    totalExpenses: number;
   };
   currency: string;
 }
@@ -43,11 +44,17 @@ const cards = [
     color: 'bg-yellow-500',
     format: 'number',
   },
+  {
+    key: 'totalExpenses',
+    label: 'Expenses (This Month)',
+    color: 'bg-amber-500',
+    format: 'money',
+  },
 ] as const;
 
 export function SummaryCards({ summary, currency }: SummaryCardsProps) {
   return (
-    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
       {cards.map((card) => {
         const value = summary[card.key];
         return (

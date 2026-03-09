@@ -9,6 +9,7 @@ import { InvoiceStatusChart } from '@/components/dashboard/invoice-status-chart'
 import { EstimateConversionCard } from '@/components/dashboard/estimate-conversion-card';
 import { TopClientsChart } from '@/components/dashboard/top-clients-chart';
 import { RecentActivity } from '@/components/dashboard/recent-activity';
+import { ExpensesByCategoryChart } from '@/components/dashboard/expenses-by-category-chart';
 
 export default function DashboardPage() {
   const { apiFetch, settingsByKey } = useApp();
@@ -47,8 +48,8 @@ export default function DashboardPage() {
             Overview of your invoicing business.
           </p>
         </div>
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, i) => (
             <div
               key={i}
               className="h-24 animate-pulse rounded-xl border border-border bg-surface/50"
@@ -114,8 +115,9 @@ export default function DashboardPage() {
         <InvoiceStatusChart data={data.invoicesByStatus} currency={currency} />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-3">
         <TopClientsChart data={data.topClients} currency={currency} />
+        <ExpensesByCategoryChart data={data.expensesByCategory} currency={currency} />
         <EstimateConversionCard data={data.estimateConversion} />
       </div>
 

@@ -3,6 +3,13 @@ export interface SummaryCards {
   outstandingAmount: number;
   overdueCount: number;
   estimatesPending: number;
+  totalExpenses: number;
+}
+
+export interface ExpensesByCategory {
+  category: string;
+  total: number;
+  count: number;
 }
 
 export interface RevenueByMonth {
@@ -48,4 +55,5 @@ export interface DashboardAnalytics {
   estimateConversion: EstimateConversion;
   recentActivity: RecentActivityItem[];
   topClients: TopClient[];
+  expensesByCategory: ExpensesByCategory[];
 }

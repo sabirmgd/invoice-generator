@@ -19,6 +19,7 @@ import { RecurringModule } from './modules/recurring/recurring.module';
 import { RemindersModule } from './modules/reminders/reminders.module';
 import { EstimatesModule } from './modules/estimates/estimates.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { ExpensesModule } from './modules/expenses/expenses.module';
 
 @Module({
   imports: [
@@ -65,6 +66,7 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
     RemindersModule,
     EstimatesModule,
     AnalyticsModule,
+    ExpensesModule,
   ],
 })
 export class AppModule {}

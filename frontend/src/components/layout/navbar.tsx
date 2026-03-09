@@ -11,6 +11,7 @@ const NAV_LINKS = [
   { href: '/invoices', label: 'Invoices' },
   { href: '/estimates', label: 'Estimates' },
   { href: '/recurring', label: 'Recurring' },
+  { href: '/expenses', label: 'Expenses' },
   { href: '/settings', label: 'Settings' },
 ];
 
