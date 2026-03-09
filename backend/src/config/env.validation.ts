@@ -31,4 +31,14 @@ export const envValidationSchema = Joi.object({
 
   // Server-side Anthropic key (optional — enables no-BYOK mode)
   ANTHROPIC_API_KEY: Joi.string().optional().allow(''),
+
+  // SendGrid (optional — email sending disabled if not set)
+  SENDGRID_API_KEY: Joi.string().optional().allow(''),
+  SENDGRID_FROM_EMAIL: Joi.string().optional().allow(''),
+
+  // Stripe (optional — payments disabled if not set)
+  STRIPE_SECRET_KEY: Joi.string().optional().allow(''),
+  STRIPE_WEBHOOK_SECRET: Joi.string().optional().allow(''),
+  STRIPE_SUCCESS_URL: Joi.string().optional().allow(''),
+  STRIPE_CANCEL_URL: Joi.string().optional().allow(''),
 });

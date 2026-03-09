@@ -9,16 +9,21 @@ import {
   Res,
   ParseUUIDPipe,
   UseGuards,
+  BadGatewayException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { Response } from 'express';
 import { InvoicesService } from './invoices.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { UpdateInvoiceStatusDto } from './dto/update-invoice-status.dto';
+import { SendInvoiceDto } from './dto/send-invoice.dto';
 import { QueryInvoiceDto } from './dto/query-invoice.dto';
 import { OptionalAuthGuard } from '../auth/guards/optional-auth.guard';
 import { OwnerId } from '../auth/decorators/owner-id.decorator';
 import { PdfService } from '../pdf/pdf.service';
+import { EmailService } from '../email/email.service';
+import { PortalService } from '../portal/portal.service';
+import { InvoiceStatus } from '../../db/entities/invoice.entity';
 
 @ApiTags('Invoices')
 @Controller('api/v1/invoices')
@@ -27,6 +32,8 @@ export class InvoicesController {
   constructor(
     private readonly invoicesService: InvoicesService,
     private readonly pdfService: PdfService,
+    private readonly emailService: EmailService,
+    private readonly portalService: PortalService,
   ) {}
 
   @Post()
@@ -73,5 +80,44 @@ export class InvoicesController {
       'Content-Length': pdfBuffer.length.toString(),
     });
     res.end(pdfBuffer);
+  }
+
+  @Post(':id/send')
+  @ApiOperation({ summary: 'Send invoice via email' })
+  async sendInvoice(
+    @OwnerId() ownerId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SendInvoiceDto,
+  ) {
+    const invoice = await this.invoicesService.findOne(ownerId, id);
+    const emailLog = await this.emailService.sendInvoiceEmail(
+      invoice,
+      dto.recipientOverride,
+    );
+
+    if (emailLog.status === 'failed') {
+      throw new BadGatewayException(
+        emailLog.errorMessage || 'Email delivery failed',
+      );
+    }
+
+    if (invoice.status === InvoiceStatus.DRAFT) {
+      await this.invoicesService.updateStatus(ownerId, id, {
+        status: InvoiceStatus.SENT,
+      });
+    }
+
+    return emailLog;
+  }
+
+  @Post(':id/portal-link')
+  @ApiOperation({ summary: 'Generate shareable portal link for invoice' })
+  async generatePortalLink(
+    @OwnerId() ownerId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    await this.invoicesService.findOne(ownerId, id);
+    const token = await this.portalService.getOrCreateToken(id);
+    return { token, url: `/portal/${token}` };
   }
 }

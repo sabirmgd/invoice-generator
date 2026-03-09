@@ -85,6 +85,9 @@ export interface Invoice {
   total: number;
   notes?: string;
   pdfPath?: string;
+  stripeCheckoutSessionId?: string;
+  stripePaymentIntentId?: string;
+  paidAt?: string;
   senderProfile?: Profile;
   clientProfile?: Profile;
   bankProfile?: Profile;
@@ -123,3 +126,58 @@ export type StreamChunk =
   | { type: 'file_processing'; filename: string; status: 'processing' | 'done' | 'error' }
   | { type: 'error'; message: string }
   | { type: 'done'; conversationId: string };
+
+export interface EmailLog {
+  id: string;
+  ownerId: string;
+  invoiceId?: string;
+  recipient: string;
+  subject: string;
+  type: 'invoice' | 'reminder' | 'receipt';
+  status: 'pending' | 'sent' | 'failed';
+  resendMessageId?: string;
+  errorMessage?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type RecurringFrequency = 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+export type RecurringStatus = 'active' | 'paused' | 'completed';
+
+export interface RecurringInvoice {
+  id: string;
+  ownerId: string;
+  name: string;
+  status: RecurringStatus;
+  frequency: RecurringFrequency;
+  senderProfileId: string;
+  clientProfileId: string;
+  bankProfileId?: string;
+  currency: string;
+  taxRate: number;
+  notes?: string;
+  items: Array<{
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    sortOrder?: number;
+  }>;
+  startDate: string;
+  endDate?: string;
+  nextRunDate?: string;
+  lastRunAt?: string;
+  invoicesGenerated: number;
+  autoSendEmail: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ReminderConfig {
+  ownerId: string;
+  enableBeforeDue: boolean;
+  daysBeforeDue: number;
+  enableOnDue: boolean;
+  enableOverdue: boolean;
+  daysAfterDue: number;
+  maxOverdueReminders: number;
+}

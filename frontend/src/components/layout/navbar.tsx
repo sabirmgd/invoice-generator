@@ -8,6 +8,7 @@ import { useState } from 'react';
 const NAV_LINKS = [
   { href: '/', label: 'Home' },
   { href: '/invoices', label: 'Invoices' },
+  { href: '/recurring', label: 'Recurring' },
   { href: '/settings', label: 'Settings' },
 ];
 
@@ -20,7 +21,7 @@ export function Navbar() {
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
         {/* Logo + Wordmark */}
         <Link href="/" className="flex items-center gap-2">
-          <Image src="/invo-logo.png" alt="Invo" width={80} height={28} priority />
+          <Image src="/invo-logo.png" alt="Invo" width={80} height={28} style={{ width: 'auto', height: 'auto' }} priority />
         </Link>
 
         {/* Desktop links */}

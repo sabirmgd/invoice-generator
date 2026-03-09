@@ -1,12 +1,15 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Invoice } from '../../db/entities/invoice.entity';
 import { InvoiceItem } from '../../db/entities/invoice-item.entity';
 import { InvoicesController } from './invoices.controller';
+import { CurrenciesController } from './currencies.controller';
 import { InvoicesService } from './invoices.service';
 import { SettingsModule } from '../settings/settings.module';
 import { ProfilesModule } from '../profiles/profiles.module';
 import { PdfModule } from '../pdf/pdf.module';
+import { EmailModule } from '../email/email.module';
+import { PortalModule } from '../portal/portal.module';
 
 @Module({
   imports: [
@@ -14,8 +17,10 @@ import { PdfModule } from '../pdf/pdf.module';
     SettingsModule,
     ProfilesModule,
     PdfModule,
+    EmailModule,
+    forwardRef(() => PortalModule),
   ],
-  controllers: [InvoicesController],
+  controllers: [InvoicesController, CurrenciesController],
   providers: [InvoicesService],
   exports: [InvoicesService],
 })

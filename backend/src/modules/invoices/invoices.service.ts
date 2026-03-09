@@ -1,7 +1,7 @@
 import { Injectable, HttpStatus } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { QueryFailedError, Repository } from 'typeorm';
-import { Invoice } from '../../db/entities/invoice.entity';
+import { Invoice, InvoiceStatus } from '../../db/entities/invoice.entity';
 import { InvoiceItem } from '../../db/entities/invoice-item.entity';
 import { ProfileType } from '../../db/entities/profile.entity';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
@@ -169,6 +169,26 @@ export class InvoicesService {
     invoice.status = dto.status;
     await this.invoiceRepo.save(invoice);
     return this.findOne(ownerId, id);
+  }
+
+  async findOneById(id: string): Promise<Invoice> {
+    return findOneOrFail(this.invoiceRepo, 'Invoice', id, {
+      relations: ['senderProfile', 'clientProfile', 'bankProfile', 'items'],
+    });
+  }
+
+  async markAsPaid(id: string, stripePaymentIntentId: string): Promise<void> {
+    await this.invoiceRepo.update(id, {
+      status: InvoiceStatus.PAID,
+      stripePaymentIntentId,
+      paidAt: new Date(),
+    });
+  }
+
+  async updateStripeSession(id: string, sessionId: string): Promise<void> {
+    await this.invoiceRepo.update(id, {
+      stripeCheckoutSessionId: sessionId,
+    });
   }
 
   async getSummary(ownerId: string): Promise<{

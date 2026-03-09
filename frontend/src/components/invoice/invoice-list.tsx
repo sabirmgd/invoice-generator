@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { buildAuthHeaders, getApiBaseUrl, parseApiResponse } from '@/lib/api';
 import { Invoice, InvoiceStatus } from '@/lib/types';
+import { formatCurrency } from '@/lib/currencies';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 
@@ -26,6 +27,8 @@ function formatMoney(amount: number, currency: string): string {
 export function InvoiceList({ invoices, sessionId, authToken, onRefresh }: InvoiceListProps) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [sendingId, setSendingId] = useState<string | null>(null);
+  const [copyingId, setCopyingId] = useState<string | null>(null);
 
   async function handleStatusUpdate(invoiceId: string, status: InvoiceStatus) {
     setError('');
@@ -41,9 +44,9 @@ export function InvoiceList({ invoices, sessionId, authToken, onRefresh }: Invoi
         body: JSON.stringify({ status }),
       });
       await parseApiResponse<Invoice>(response);
-      await onRefresh();
       setSuccess(`Status updated to "${status}"`);
       setTimeout(() => setSuccess(''), 3000);
+      await onRefresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update status');
     }
@@ -69,6 +72,61 @@ export function InvoiceList({ invoices, sessionId, authToken, onRefresh }: Invoi
       URL.revokeObjectURL(objectUrl);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to download PDF');
+    }
+  }
+
+  async function handleSendEmail(invoice: Invoice) {
+    setError('');
+    setSendingId(invoice.id);
+    try {
+      const headers = new Headers({
+        ...buildAuthHeaders(sessionId, authToken || undefined),
+        'Content-Type': 'application/json',
+      });
+      const response = await fetch(`${API_BASE}/api/v1/invoices/${invoice.id}/send`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({}),
+      });
+      const result = await parseApiResponse<{ status?: string; errorMessage?: string }>(response);
+      if (result?.status === 'failed') {
+        setError(result.errorMessage || 'Email delivery failed');
+      } else {
+        setSuccess('Invoice sent via email');
+        setTimeout(() => setSuccess(''), 3000);
+      }
+      await onRefresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to send email');
+    } finally {
+      setSendingId(null);
+    }
+  }
+
+  async function handleCopyPortalLink(invoice: Invoice) {
+    setError('');
+    setCopyingId(invoice.id);
+    try {
+      const headers = new Headers({
+        ...buildAuthHeaders(sessionId, authToken || undefined),
+        'Content-Type': 'application/json',
+      });
+      const response = await fetch(`${API_BASE}/api/v1/invoices/${invoice.id}/portal-link`, {
+        method: 'POST',
+        headers,
+      });
+      const data = await parseApiResponse<{ url: string }>(response);
+      try {
+        await navigator.clipboard.writeText(`${window.location.origin}${data.url}`);
+        setSuccess('Portal link copied to clipboard');
+      } catch {
+        setSuccess(`Portal link: ${window.location.origin}${data.url}`);
+      }
+      setTimeout(() => setSuccess(''), 5000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to generate portal link');
+    } finally {
+      setCopyingId(null);
     }
   }
 
@@ -143,13 +201,35 @@ export function InvoiceList({ invoices, sessionId, authToken, onRefresh }: Invoi
                 </td>
                 <td className="px-3 py-3 text-xs text-text-secondary">{invoice.issueDate}</td>
                 <td className="px-3 py-3">
-                  <button
-                    type="button"
-                    onClick={() => void handleDownloadPdf(invoice)}
-                    className="rounded-md border border-border px-2 py-1 text-xs text-text-secondary hover:bg-surface"
-                  >
-                    PDF
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => void handleDownloadPdf(invoice)}
+                      className="rounded-md border border-border px-2 py-1 text-xs text-text-secondary hover:bg-surface"
+                    >
+                      PDF
+                    </button>
+                    {(invoice.status === 'draft' || invoice.status === 'sent') && (
+                      <button
+                        type="button"
+                        onClick={() => void handleSendEmail(invoice)}
+                        disabled={sendingId === invoice.id}
+                        className="rounded-md border border-border px-2 py-1 text-xs text-text-secondary hover:bg-surface disabled:opacity-50"
+                      >
+                        {sendingId === invoice.id ? '...' : 'Send'}
+                      </button>
+                    )}
+                    {invoice.status !== 'draft' && invoice.status !== 'cancelled' && (
+                      <button
+                        type="button"
+                        onClick={() => void handleCopyPortalLink(invoice)}
+                        disabled={copyingId === invoice.id}
+                        className="rounded-md border border-border px-2 py-1 text-xs text-text-secondary hover:bg-surface disabled:opacity-50"
+                      >
+                        {copyingId === invoice.id ? '...' : 'Link'}
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -171,7 +251,7 @@ export function InvoiceList({ invoices, sessionId, authToken, onRefresh }: Invoi
             <p className="mt-2 text-lg font-bold">
               {formatMoney(Number(invoice.total), invoice.currency || 'USD')}
             </p>
-            <div className="mt-3 flex items-center gap-2">
+            <div className="mt-3 flex flex-wrap items-center gap-2">
               <select
                 value={invoice.status}
                 onChange={(e) => void handleStatusUpdate(invoice.id, e.target.value as InvoiceStatus)}
@@ -189,6 +269,26 @@ export function InvoiceList({ invoices, sessionId, authToken, onRefresh }: Invoi
               >
                 PDF
               </button>
+              {(invoice.status === 'draft' || invoice.status === 'sent') && (
+                <button
+                  type="button"
+                  onClick={() => void handleSendEmail(invoice)}
+                  disabled={sendingId === invoice.id}
+                  className="h-7 rounded-md border border-border px-2 text-xs text-text-secondary hover:bg-surface disabled:opacity-50"
+                >
+                  {sendingId === invoice.id ? '...' : 'Send'}
+                </button>
+              )}
+              {invoice.status !== 'draft' && invoice.status !== 'cancelled' && (
+                <button
+                  type="button"
+                  onClick={() => void handleCopyPortalLink(invoice)}
+                  disabled={copyingId === invoice.id}
+                  className="h-7 rounded-md border border-border px-2 text-xs text-text-secondary hover:bg-surface disabled:opacity-50"
+                >
+                  {copyingId === invoice.id ? '...' : 'Link'}
+                </button>
+              )}
             </div>
           </div>
         ))}

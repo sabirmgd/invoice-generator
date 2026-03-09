@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useMemo, useState } from 'react';
 import { useApp } from '@/lib/context/app-context';
 import { Invoice, Profile } from '@/lib/types';
+import { CURRENCY_GROUPS, CURRENCIES } from '@/lib/currencies';
 import Link from 'next/link';
 
 interface LineItem {
@@ -372,8 +373,17 @@ export function InvoiceForm({ onInvoiceCreated }: InvoiceFormProps) {
                 onChange={(e) => setCurrency(e.target.value)}
                 className="h-9 rounded-lg border border-border bg-background px-2 text-sm text-foreground"
               >
-                {['USD', 'EUR', 'GBP', 'SAR', 'AED', 'CAD', 'AUD', 'JPY', 'INR'].map((c) => (
-                  <option key={c} value={c}>{c}</option>
+                {CURRENCY_GROUPS.map((group) => (
+                  <optgroup key={group.label} label={group.label}>
+                    {group.codes.map((code) => {
+                      const c = CURRENCIES.find((cur) => cur.code === code);
+                      return c ? (
+                        <option key={c.code} value={c.code}>
+                          {c.code} — {c.symbol} {c.name}
+                        </option>
+                      ) : null;
+                    })}
+                  </optgroup>
                 ))}
               </select>
             </label>

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import PDFDocument from 'pdfkit';
 import { Invoice } from '../../db/entities/invoice.entity';
 import { SettingsService } from '../settings/settings.service';
+import { getCurrencyInfo } from '../../common/constants/currencies';
 
 @Injectable()
 export class PdfService {
@@ -242,11 +243,11 @@ export class PdfService {
         width: 60,
         align: 'right',
       });
-      doc.text(`${currency} ${Number(item.unitPrice).toFixed(2)}`, 365, rowY, {
+      doc.text(this.formatAmount(Number(item.unitPrice), currency), 365, rowY, {
         width: 70,
         align: 'right',
       });
-      doc.text(`${currency} ${Number(item.amount).toFixed(2)}`, 440, rowY, {
+      doc.text(this.formatAmount(Number(item.amount), currency), 440, rowY, {
         width: 100,
         align: 'right',
       });
@@ -289,7 +290,7 @@ export class PdfService {
     doc.fontSize(10).font('Helvetica').fillColor('#374151');
     doc.text('Subtotal:', labelX, subtotalY, { width: 55, align: 'right' });
     doc.text(
-      `${currency} ${Number(invoice.subtotal).toFixed(2)}`,
+      this.formatAmount(Number(invoice.subtotal), currency),
       valueX,
       subtotalY,
       { width: 100, align: 'right' },
@@ -300,7 +301,7 @@ export class PdfService {
       align: 'right',
     });
     doc.text(
-      `${currency} ${Number(invoice.taxAmount).toFixed(2)}`,
+      this.formatAmount(Number(invoice.taxAmount), currency),
       valueX,
       taxY,
       { width: 100, align: 'right' },
@@ -317,7 +318,7 @@ export class PdfService {
     doc.fontSize(13).font('Helvetica-Bold').fillColor('#111827');
     doc.text('Total:', labelX, totalY, { width: 55, align: 'right' });
     doc.text(
-      `${currency} ${Number(invoice.total).toFixed(2)}`,
+      this.formatAmount(Number(invoice.total), currency),
       valueX,
       totalY,
       { width: 100, align: 'right' },
@@ -402,6 +403,11 @@ export class PdfService {
         align: 'center',
         width: 495,
       });
+  }
+
+  private formatAmount(amount: number, currencyCode: string): string {
+    const info = getCurrencyInfo(currencyCode);
+    return `${info.symbol} ${Number(amount).toFixed(info.decimals)}`;
   }
 
   private decodeLogoDataUrl(dataUrl?: string): Buffer | null {

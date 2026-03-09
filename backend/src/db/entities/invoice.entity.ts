@@ -88,6 +88,16 @@ export class Invoice extends BaseEntity {
   @Column({ nullable: true })
   pdfPath?: string;
 
+  // Stripe payment
+  @Column({ nullable: true })
+  stripeCheckoutSessionId?: string;
+
+  @Column({ nullable: true })
+  stripePaymentIntentId?: string;
+
+  @Column({ type: 'timestamp', nullable: true })
+  paidAt?: Date;
+
   @Column({ type: 'jsonb', nullable: true })
   metadata?: Record<string, unknown>;
 
