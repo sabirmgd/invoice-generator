@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
-import { Invoice, InvoiceStatus } from '../../db/entities/invoice.entity';
+import { Invoice } from '../../db/entities/invoice.entity';
 import { InvoicesService } from '../invoices/invoices.service';
 
 @Injectable()
@@ -70,10 +70,7 @@ export class PaymentsService {
     });
 
     // Store session ID on invoice
-    await this.invoicesService.updateStripeSession(
-      invoice.id,
-      session.id,
-    );
+    await this.invoicesService.updateStripeSession(invoice.id, session.id);
 
     return {
       url: session.url!,
@@ -100,7 +97,7 @@ export class PaymentsService {
     );
 
     if (event.type === 'checkout.session.completed') {
-      const session = event.data.object as Stripe.Checkout.Session;
+      const session = event.data.object;
       const invoiceId = session.metadata?.invoiceId;
 
       if (invoiceId) {

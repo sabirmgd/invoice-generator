@@ -26,6 +26,7 @@ import { EmailService } from '../email/email.service';
 import { PortalService } from '../portal/portal.service';
 import { ApplyLateFeeDto } from './dto/apply-late-fee.dto';
 import { InvoiceStatus } from '../../db/entities/invoice.entity';
+import { EmailStatus } from '../../db/entities/email-log.entity';
 
 @ApiTags('Invoices')
 @Controller('api/v1/invoices')
@@ -97,7 +98,7 @@ export class InvoicesController {
       dto.recipientOverride,
     );
 
-    if (emailLog.status === 'failed') {
+    if (emailLog.status === EmailStatus.FAILED) {
       throw new BadGatewayException(
         emailLog.errorMessage || 'Email delivery failed',
       );
