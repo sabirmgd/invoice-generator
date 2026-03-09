@@ -273,15 +273,14 @@ export class PdfService {
     totalsY: number,
   ): number {
     const currency = invoice.currency;
+    const hasLateFee = invoice.lateFeeAmount != null && Number(invoice.lateFeeAmount) > 0;
     const panelX = 360;
     const panelWidth = 185;
-    const panelHeight = 96;
+    const panelHeight = hasLateFee ? 120 : 96;
     const labelX = 370;
     const valueX = 440;
     const subtotalY = totalsY + 14;
     const taxY = subtotalY + 24;
-    const dividerY = taxY + 20;
-    const totalY = dividerY + 10;
 
     doc
       .roundedRect(panelX, totalsY, panelWidth, panelHeight, 8)
@@ -307,18 +306,38 @@ export class PdfService {
       { width: 100, align: 'right' },
     );
 
-    // Total with bold
+    let nextY = taxY + 24;
+
+    // Late fee line (if applicable)
+    if (hasLateFee) {
+      doc.fontSize(10).font('Helvetica').fillColor('#dc2626');
+      doc.text('Late Fee:', labelX, nextY, { width: 55, align: 'right' });
+      doc.text(
+        this.formatAmount(Number(invoice.lateFeeAmount), currency),
+        valueX,
+        nextY,
+        { width: 100, align: 'right' },
+      );
+      nextY += 20;
+    } else {
+      nextY -= 4;
+    }
+
+    // Divider
     doc
-      .moveTo(panelX + 12, dividerY)
-      .lineTo(panelX + panelWidth - 12, dividerY)
+      .moveTo(panelX + 12, nextY)
+      .lineTo(panelX + panelWidth - 12, nextY)
       .strokeColor('#333333')
       .lineWidth(1)
       .stroke();
 
+    const totalY = nextY + 10;
+    const totalDue = Number(invoice.total) + (hasLateFee ? Number(invoice.lateFeeAmount) : 0);
+
     doc.fontSize(13).font('Helvetica-Bold').fillColor('#111827');
-    doc.text('Total:', labelX, totalY, { width: 55, align: 'right' });
+    doc.text(hasLateFee ? 'Total Due:' : 'Total:', labelX, totalY, { width: 55, align: 'right' });
     doc.text(
-      this.formatAmount(Number(invoice.total), currency),
+      this.formatAmount(totalDue, currency),
       valueX,
       totalY,
       { width: 100, align: 'right' },
@@ -407,7 +426,11 @@ export class PdfService {
 
   private formatAmount(amount: number, currencyCode: string): string {
     const info = getCurrencyInfo(currencyCode);
-    return `${info.symbol} ${Number(amount).toFixed(info.decimals)}`;
+    // Helvetica can't render non-Latin symbols (Arabic, Thai, etc.) — use currency code instead
+    const symbol = /^[\x20-\x7E\u00A0-\u024F\u20A0-\u20CF]+$/.test(info.symbol)
+      ? info.symbol
+      : currencyCode;
+    return `${symbol} ${Number(amount).toFixed(info.decimals)}`;
   }
 
   private decodeLogoDataUrl(dataUrl?: string): Buffer | null {

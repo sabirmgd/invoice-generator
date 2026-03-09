@@ -215,6 +215,42 @@ export class InvoicesService {
     return { total, statusCounts, revenue };
   }
 
+  async applyLateFee(
+    ownerId: string,
+    id: string,
+    amount: number,
+  ): Promise<Invoice> {
+    const invoice = await this.findOne(ownerId, id);
+    if (invoice.status !== InvoiceStatus.SENT) {
+      throw new AppException(
+        'Late fees can only be applied to sent invoices',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    await this.invoiceRepo.update(id, {
+      lateFeeAmount: amount,
+      lateFeeAppliedAt: new Date(),
+    });
+    return this.findOne(ownerId, id);
+  }
+
+  async removeLateFee(ownerId: string, id: string): Promise<Invoice> {
+    const invoice = await this.findOne(ownerId, id);
+    if (invoice.lateFeeAmount == null) {
+      throw new AppException(
+        'No late fee to remove',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    await this.invoiceRepo
+      .createQueryBuilder()
+      .update()
+      .set({ lateFeeAmount: null, lateFeeAppliedAt: null } as any)
+      .where('id = :id', { id })
+      .execute();
+    return this.findOne(ownerId, id);
+  }
+
   private async generateNextNumber(ownerId: string): Promise<string> {
     const prefix = await this.settingsService.getValue(
       ownerId,

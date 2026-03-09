@@ -87,11 +87,19 @@ function ReminderSettings({ apiFetch }: { apiFetch: <T>(path: string, init?: Req
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [isError, setIsError] = useState(false);
 
   const fetchConfig = useCallback(async () => {
     try {
       const data = await apiFetch<ReminderConfig>('/api/v1/reminders/config');
-      setConfig(data);
+      setConfig({
+        ...data,
+        daysBeforeDue: Number(data.daysBeforeDue),
+        daysAfterDue: Number(data.daysAfterDue),
+        maxOverdueReminders: Number(data.maxOverdueReminders),
+        lateFeeValue: Number(data.lateFeeValue),
+        lateFeeGraceDays: Number(data.lateFeeGraceDays),
+      });
     } catch {
       // Config may not exist yet, use defaults
       setConfig({
@@ -102,6 +110,10 @@ function ReminderSettings({ apiFetch }: { apiFetch: <T>(path: string, init?: Req
         enableOverdue: true,
         daysAfterDue: 1,
         maxOverdueReminders: 3,
+        enableLateFees: false,
+        lateFeeType: 'percentage',
+        lateFeeValue: 5,
+        lateFeeGraceDays: 0,
       });
     } finally {
       setLoading(false);
@@ -126,12 +138,18 @@ function ReminderSettings({ apiFetch }: { apiFetch: <T>(path: string, init?: Req
           enableOverdue: config.enableOverdue,
           daysAfterDue: config.daysAfterDue,
           maxOverdueReminders: config.maxOverdueReminders,
+          enableLateFees: config.enableLateFees,
+          lateFeeType: config.lateFeeType,
+          lateFeeValue: Number(config.lateFeeValue),
+          lateFeeGraceDays: Number(config.lateFeeGraceDays),
         }),
       });
       setMessage('Saved');
+      setIsError(false);
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Failed to save');
+      setIsError(true);
     } finally {
       setSaving(false);
     }
@@ -227,6 +245,73 @@ function ReminderSettings({ apiFetch }: { apiFetch: <T>(path: string, init?: Req
         )}
       </div>
 
+      {/* Late Fees */}
+      <div className="space-y-3 border-t border-border pt-4">
+        <div>
+          <label className="flex items-center gap-2 text-sm font-medium text-foreground cursor-pointer">
+            <input
+              type="checkbox"
+              checked={config.enableLateFees}
+              onChange={(e) => setConfig({ ...config, enableLateFees: e.target.checked })}
+              className="rounded"
+            />
+            Apply late fees automatically
+          </label>
+          <p className="ml-6 text-xs text-text-secondary">Charge a fee on overdue invoices</p>
+        </div>
+        {config.enableLateFees && (
+          <div className="ml-6 space-y-3">
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+                <input
+                  type="radio"
+                  name="lateFeeType"
+                  checked={config.lateFeeType === 'percentage'}
+                  onChange={() => setConfig({ ...config, lateFeeType: 'percentage' })}
+                />
+                Percentage
+              </label>
+              <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+                <input
+                  type="radio"
+                  name="lateFeeType"
+                  checked={config.lateFeeType === 'fixed'}
+                  onChange={() => setConfig({ ...config, lateFeeType: 'fixed' })}
+                />
+                Fixed amount
+              </label>
+            </div>
+            <div className="flex items-center gap-3 text-xs text-text-secondary">
+              <label className="flex items-center gap-1">
+                {config.lateFeeType === 'percentage' ? 'Rate' : 'Amount'}
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={config.lateFeeType === 'percentage' ? 0.5 : 1}
+                  value={config.lateFeeValue}
+                  onChange={(e) => setConfig({ ...config, lateFeeValue: Number(e.target.value) })}
+                  className="h-8 w-20 rounded-lg border border-border bg-background px-2 text-center text-sm text-foreground"
+                />
+                {config.lateFeeType === 'percentage' ? '%' : ''}
+              </label>
+              <label className="flex items-center gap-1">
+                Grace period
+                <input
+                  type="number"
+                  min={0}
+                  max={90}
+                  value={config.lateFeeGraceDays}
+                  onChange={(e) => setConfig({ ...config, lateFeeGraceDays: Number(e.target.value) })}
+                  className="h-8 w-16 rounded-lg border border-border bg-background px-2 text-center text-sm text-foreground"
+                />
+                days
+              </label>
+            </div>
+          </div>
+        )}
+      </div>
+
       <div className="flex items-center gap-3 border-t border-border pt-4">
         <button
           type="button"
@@ -236,7 +321,7 @@ function ReminderSettings({ apiFetch }: { apiFetch: <T>(path: string, init?: Req
         >
           {saving ? 'Saving...' : 'Save Reminders'}
         </button>
-        {message && <span className="text-sm text-green-600">{message}</span>}
+        {message && <span className={`text-sm ${isError ? 'text-red-600' : 'text-green-600'}`}>{message}</span>}
       </div>
     </div>
   );

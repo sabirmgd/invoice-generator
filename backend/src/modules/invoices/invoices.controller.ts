@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Delete,
   Patch,
   Param,
   Body,
@@ -23,6 +24,7 @@ import { OwnerId } from '../auth/decorators/owner-id.decorator';
 import { PdfService } from '../pdf/pdf.service';
 import { EmailService } from '../email/email.service';
 import { PortalService } from '../portal/portal.service';
+import { ApplyLateFeeDto } from './dto/apply-late-fee.dto';
 import { InvoiceStatus } from '../../db/entities/invoice.entity';
 
 @ApiTags('Invoices')
@@ -119,5 +121,24 @@ export class InvoicesController {
     await this.invoicesService.findOne(ownerId, id);
     const token = await this.portalService.getOrCreateToken(id);
     return { token, url: `/portal/${token}` };
+  }
+
+  @Post(':id/late-fee')
+  @ApiOperation({ summary: 'Manually apply a late fee to an invoice' })
+  async applyLateFee(
+    @OwnerId() ownerId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ApplyLateFeeDto,
+  ) {
+    return this.invoicesService.applyLateFee(ownerId, id, dto.amount);
+  }
+
+  @Delete(':id/late-fee')
+  @ApiOperation({ summary: 'Remove late fee from an invoice' })
+  async removeLateFee(
+    @OwnerId() ownerId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.invoicesService.removeLateFee(ownerId, id);
   }
 }

@@ -22,11 +22,7 @@ export class RemindersScheduler {
 
   @Cron('0 9 * * *') // 9 AM daily
   async processReminders() {
-    if (!this.emailService.isConfigured()) {
-      return;
-    }
-
-    this.logger.log('Processing invoice reminders...');
+    this.logger.log('Processing invoice reminders and late fees...');
 
     const configs = await this.remindersService.getAllConfigs();
     const today = new Date();
@@ -41,13 +37,56 @@ export class RemindersScheduler {
         });
 
         for (const invoice of result.items) {
-          await this.checkAndSendReminders(invoice, config, today);
+          // Apply late fees (runs even without email configured)
+          await this.applyLateFeeIfNeeded(invoice, config, today);
+
+          // Send email reminders (only if email is configured)
+          if (this.emailService.isConfigured()) {
+            await this.checkAndSendReminders(invoice, config, today);
+          }
         }
       } catch (error) {
         this.logger.error(
           `Failed to process reminders for owner ${config.ownerId}: ${error}`,
         );
       }
+    }
+  }
+
+  private async applyLateFeeIfNeeded(
+    invoice: Invoice,
+    config: { ownerId: string; enableLateFees: boolean; lateFeeType: string; lateFeeValue: number; lateFeeGraceDays: number },
+    today: Date,
+  ) {
+    if (!config.enableLateFees) return;
+    if (invoice.lateFeeAmount != null) return; // Already applied
+
+    const dueDate = new Date(invoice.dueDate);
+    dueDate.setHours(0, 0, 0, 0);
+    const daysOverdue = Math.ceil(
+      (today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24),
+    );
+
+    if (daysOverdue < config.lateFeeGraceDays) return;
+
+    const total = Number(invoice.total);
+    const feeAmount =
+      config.lateFeeType === 'percentage'
+        ? total * (Number(config.lateFeeValue) / 100)
+        : Number(config.lateFeeValue);
+
+    const roundedFee = Math.round(feeAmount * 100) / 100;
+    if (roundedFee <= 0) return;
+
+    try {
+      await this.invoicesService.applyLateFee(config.ownerId, invoice.id, roundedFee);
+      this.logger.log(
+        `Applied late fee of ${roundedFee} to invoice ${invoice.invoiceNumber}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to apply late fee to ${invoice.invoiceNumber}: ${error}`,
+      );
     }
   }
 

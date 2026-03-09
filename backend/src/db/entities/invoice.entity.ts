@@ -98,6 +98,13 @@ export class Invoice extends BaseEntity {
   @Column({ type: 'timestamp', nullable: true })
   paidAt?: Date;
 
+  // Late fees
+  @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
+  lateFeeAmount?: number;
+
+  @Column({ type: 'timestamp', nullable: true })
+  lateFeeAppliedAt?: Date;
+
   @Column({ type: 'jsonb', nullable: true })
   metadata?: Record<string, unknown>;
 

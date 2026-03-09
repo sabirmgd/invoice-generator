@@ -87,6 +87,8 @@ export interface Invoice {
   pdfPath?: string;
   stripeCheckoutSessionId?: string;
   stripePaymentIntentId?: string;
+  lateFeeAmount?: number;
+  lateFeeAppliedAt?: string;
   paidAt?: string;
   senderProfile?: Profile;
   clientProfile?: Profile;
@@ -180,4 +182,8 @@ export interface ReminderConfig {
   enableOverdue: boolean;
   daysAfterDue: number;
   maxOverdueReminders: number;
+  enableLateFees: boolean;
+  lateFeeType: 'percentage' | 'fixed';
+  lateFeeValue: number;
+  lateFeeGraceDays: number;
 }

@@ -1,4 +1,4 @@
-import { IsOptional, IsBoolean, IsInt, Min, Max } from 'class-validator';
+import { IsOptional, IsBoolean, IsInt, IsNumber, IsIn, Min, Max } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdateReminderConfigDto {
@@ -37,4 +37,29 @@ export class UpdateReminderConfigDto {
   @Min(1)
   @Max(10)
   maxOverdueReminders?: number;
+
+  // Late fees
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  enableLateFees?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsIn(['percentage', 'fixed'])
+  lateFeeType?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(1000000)
+  lateFeeValue?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(90)
+  lateFeeGraceDays?: number;
 }

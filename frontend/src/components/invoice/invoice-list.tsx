@@ -29,6 +29,7 @@ export function InvoiceList({ invoices, sessionId, authToken, onRefresh }: Invoi
   const [success, setSuccess] = useState('');
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [copyingId, setCopyingId] = useState<string | null>(null);
+  const [removingFeeId, setRemovingFeeId] = useState<string | null>(null);
 
   async function handleStatusUpdate(invoiceId: string, status: InvoiceStatus) {
     setError('');
@@ -130,6 +131,25 @@ export function InvoiceList({ invoices, sessionId, authToken, onRefresh }: Invoi
     }
   }
 
+  async function handleRemoveLateFee(invoice: Invoice) {
+    setError('');
+    setRemovingFeeId(invoice.id);
+    try {
+      const response = await fetch(`${API_BASE}/api/v1/invoices/${invoice.id}/late-fee`, {
+        method: 'DELETE',
+        headers: buildAuthHeaders(sessionId, authToken || undefined),
+      });
+      await parseApiResponse<Invoice>(response);
+      setSuccess('Late fee removed');
+      setTimeout(() => setSuccess(''), 3000);
+      await onRefresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to remove late fee');
+    } finally {
+      setRemovingFeeId(null);
+    }
+  }
+
   if (invoices.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-border bg-surface/30 px-6 py-12 text-center">
@@ -185,7 +205,10 @@ export function InvoiceList({ invoices, sessionId, authToken, onRefresh }: Invoi
                 <td className="px-3 py-3 font-medium">{invoice.invoiceNumber}</td>
                 <td className="px-3 py-3 text-text-secondary">{invoice.clientProfile?.name || 'Unknown'}</td>
                 <td className="px-3 py-3 font-medium">
-                  {formatMoney(Number(invoice.total), invoice.currency || 'USD')}
+                  {formatMoney(Number(invoice.total) + (invoice.lateFeeAmount ? Number(invoice.lateFeeAmount) : 0), invoice.currency || 'USD')}
+                  {invoice.lateFeeAmount != null && Number(invoice.lateFeeAmount) > 0 && (
+                    <span className="ml-1 text-[10px] font-normal text-red-500">+fee</span>
+                  )}
                 </td>
                 <td className="px-3 py-3">
                   <select
@@ -229,6 +252,16 @@ export function InvoiceList({ invoices, sessionId, authToken, onRefresh }: Invoi
                         {copyingId === invoice.id ? '...' : 'Link'}
                       </button>
                     )}
+                    {invoice.lateFeeAmount != null && Number(invoice.lateFeeAmount) > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => void handleRemoveLateFee(invoice)}
+                        disabled={removingFeeId === invoice.id}
+                        className="rounded-md border border-red-200 px-2 py-1 text-xs text-red-500 hover:bg-red-50 disabled:opacity-50"
+                      >
+                        {removingFeeId === invoice.id ? '...' : 'Remove Fee'}
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -249,7 +282,10 @@ export function InvoiceList({ invoices, sessionId, authToken, onRefresh }: Invoi
               <Badge status={invoice.status} />
             </div>
             <p className="mt-2 text-lg font-bold">
-              {formatMoney(Number(invoice.total), invoice.currency || 'USD')}
+              {formatMoney(Number(invoice.total) + (invoice.lateFeeAmount ? Number(invoice.lateFeeAmount) : 0), invoice.currency || 'USD')}
+              {invoice.lateFeeAmount != null && Number(invoice.lateFeeAmount) > 0 && (
+                <span className="ml-1 text-xs font-normal text-red-500">+fee</span>
+              )}
             </p>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <select
@@ -287,6 +323,16 @@ export function InvoiceList({ invoices, sessionId, authToken, onRefresh }: Invoi
                   className="h-7 rounded-md border border-border px-2 text-xs text-text-secondary hover:bg-surface disabled:opacity-50"
                 >
                   {copyingId === invoice.id ? '...' : 'Link'}
+                </button>
+              )}
+              {invoice.lateFeeAmount != null && Number(invoice.lateFeeAmount) > 0 && (
+                <button
+                  type="button"
+                  onClick={() => void handleRemoveLateFee(invoice)}
+                  disabled={removingFeeId === invoice.id}
+                  className="h-7 rounded-md border border-red-200 px-2 text-xs text-red-500 hover:bg-red-50 disabled:opacity-50"
+                >
+                  {removingFeeId === invoice.id ? '...' : 'Remove Fee'}
                 </button>
               )}
             </div>

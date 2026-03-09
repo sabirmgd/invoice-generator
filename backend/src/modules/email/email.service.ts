@@ -232,11 +232,21 @@ export class EmailService {
       invoice.clientProfile?.companyName || invoice.clientProfile?.name || '';
     const info = getCurrencyInfo(invoice.currency);
     const totalFormatted = `${info.symbol} ${Number(invoice.total).toFixed(info.decimals)}`;
+    const hasLateFee = invoice.lateFeeAmount != null && Number(invoice.lateFeeAmount) > 0;
+    const lateFeeFormatted = hasLateFee
+      ? `${info.symbol} ${Number(invoice.lateFeeAmount).toFixed(info.decimals)}`
+      : '';
+    const totalDueFormatted = hasLateFee
+      ? `${info.symbol} ${(Number(invoice.total) + Number(invoice.lateFeeAmount)).toFixed(info.decimals)}`
+      : totalFormatted;
+    const lateFeeNote = hasLateFee
+      ? ` A late fee of <strong>${lateFeeFormatted}</strong> has been applied, bringing the total due to <strong>${totalDueFormatted}</strong>.`
+      : '';
 
     const messageMap: Record<string, string> = {
       before_due: `This is a friendly reminder that invoice <strong>${invoice.invoiceNumber}</strong> for <strong>${totalFormatted}</strong> is due on <strong>${invoice.dueDate}</strong>.`,
       on_due: `Invoice <strong>${invoice.invoiceNumber}</strong> for <strong>${totalFormatted}</strong> is due today.`,
-      overdue: `Invoice <strong>${invoice.invoiceNumber}</strong> for <strong>${totalFormatted}</strong> was due on <strong>${invoice.dueDate}</strong> and is now overdue. Please arrange payment at your earliest convenience.`,
+      overdue: `Invoice <strong>${invoice.invoiceNumber}</strong> for <strong>${totalFormatted}</strong> was due on <strong>${invoice.dueDate}</strong> and is now overdue. Please arrange payment at your earliest convenience.${lateFeeNote}`,
     };
 
     const payButton = portalUrl

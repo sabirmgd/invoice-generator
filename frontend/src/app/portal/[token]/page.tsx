@@ -193,9 +193,15 @@ export default function PortalPage() {
                 <span className="text-text-secondary">Tax ({invoice.taxRate}%)</span>
                 <span className="text-foreground">{formatCurrency(Number(invoice.taxAmount), invoice.currency)}</span>
               </div>
+              {invoice.lateFeeAmount != null && Number(invoice.lateFeeAmount) > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-red-500">Late Fee</span>
+                  <span className="text-red-500">{formatCurrency(Number(invoice.lateFeeAmount), invoice.currency)}</span>
+                </div>
+              )}
               <div className="flex justify-between border-t border-border pt-2 text-lg font-bold">
-                <span className="text-foreground">Total</span>
-                <span className="text-foreground">{formatCurrency(Number(invoice.total), invoice.currency)}</span>
+                <span className="text-foreground">{invoice.lateFeeAmount != null && Number(invoice.lateFeeAmount) > 0 ? 'Total Due' : 'Total'}</span>
+                <span className="text-foreground">{formatCurrency(Number(invoice.total) + (invoice.lateFeeAmount ? Number(invoice.lateFeeAmount) : 0), invoice.currency)}</span>
               </div>
             </div>
           </div>

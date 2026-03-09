@@ -24,6 +24,19 @@ export class ReminderConfig {
   @Column({ type: 'int', default: 3 })
   maxOverdueReminders!: number;
 
+  // Late fees
+  @Column({ default: false })
+  enableLateFees!: boolean;
+
+  @Column({ length: 10, default: 'percentage' })
+  lateFeeType!: string; // 'percentage' | 'fixed'
+
+  @Column({ type: 'decimal', precision: 12, scale: 2, default: 5.0 })
+  lateFeeValue!: number;
+
+  @Column({ type: 'int', default: 0 })
+  lateFeeGraceDays!: number;
+
   @CreateDateColumn()
   createdAt!: Date;
 
