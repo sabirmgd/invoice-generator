@@ -224,3 +224,43 @@ export interface ReminderConfig {
   lateFeeValue: number;
   lateFeeGraceDays: number;
 }
+
+export interface DashboardAnalytics {
+  summary: {
+    totalRevenue: number;
+    outstandingAmount: number;
+    overdueCount: number;
+    estimatesPending: number;
+  };
+  revenueByMonth: Array<{
+    month: string;
+    label: string;
+    revenue: number;
+  }>;
+  invoicesByStatus: Array<{
+    status: string;
+    count: number;
+    amount: number;
+  }>;
+  estimateConversion: {
+    totalNonDraft: number;
+    converted: number;
+    conversionRate: number;
+  };
+  recentActivity: Array<{
+    id: string;
+    type: 'invoice' | 'estimate';
+    number: string;
+    clientName: string;
+    status: string;
+    total: number;
+    currency: string;
+    date: string;
+  }>;
+  topClients: Array<{
+    clientName: string;
+    clientId: string;
+    totalRevenue: number;
+    invoiceCount: number;
+  }>;
+}

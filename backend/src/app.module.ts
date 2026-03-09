@@ -18,6 +18,7 @@ import { PortalModule } from './modules/portal/portal.module';
 import { RecurringModule } from './modules/recurring/recurring.module';
 import { RemindersModule } from './modules/reminders/reminders.module';
 import { EstimatesModule } from './modules/estimates/estimates.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
 
 @Module({
   imports: [
@@ -63,6 +64,7 @@ import { EstimatesModule } from './modules/estimates/estimates.module';
     RecurringModule,
     RemindersModule,
     EstimatesModule,
+    AnalyticsModule,
   ],
 })
 export class AppModule {}

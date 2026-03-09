@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 
 const NAV_LINKS = [
+  { href: '/dashboard', label: 'Dashboard' },
   { href: '/', label: 'Home' },
   { href: '/invoices', label: 'Invoices' },
   { href: '/estimates', label: 'Estimates' },
