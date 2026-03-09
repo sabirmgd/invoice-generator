@@ -69,8 +69,12 @@ export class SettingsService {
   }
 
   async update(ownerId: string, key: string, value: string): Promise<Setting> {
-    const setting = await this.findByKey(ownerId, key);
-    setting.value = value;
+    let setting = await this.repo.findOneBy({ ownerId, key });
+    if (setting) {
+      setting.value = value;
+    } else {
+      setting = this.repo.create({ ownerId, key, value, description: '' });
+    }
     return this.repo.save(setting);
   }
 

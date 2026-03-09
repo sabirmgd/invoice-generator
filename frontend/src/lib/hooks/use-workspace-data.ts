@@ -77,7 +77,7 @@ export function useWorkspaceData(sessionId: string, authToken: string) {
   );
 
   const editableSettings = useMemo(
-    () => settings.filter((s) => s.key !== 'invoice_logo_data_url'),
+    () => settings.filter((s) => !['invoice_logo_data_url', 'invoice_template', 'invoice_accent_color'].includes(s.key)),
     [settings],
   );
 
