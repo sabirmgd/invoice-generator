@@ -11,6 +11,7 @@ export enum EmailType {
   INVOICE = 'invoice',
   REMINDER = 'reminder',
   RECEIPT = 'receipt',
+  ESTIMATE = 'estimate',
 }
 
 @Entity('email_logs')
@@ -21,6 +22,9 @@ export class EmailLog extends BaseEntity {
 
   @Column({ nullable: true })
   invoiceId?: string;
+
+  @Column({ nullable: true })
+  estimateId?: string;
 
   @Column()
   recipient!: string;

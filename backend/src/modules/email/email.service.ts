@@ -9,6 +9,7 @@ import {
   EmailType,
 } from '../../db/entities/email-log.entity';
 import { Invoice } from '../../db/entities/invoice.entity';
+import { Estimate } from '../../db/entities/estimate.entity';
 import { PdfService } from '../pdf/pdf.service';
 import { getCurrencyInfo } from '../../common/constants/currencies';
 
@@ -92,6 +93,69 @@ export class EmailService {
       log.errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
       this.logger.error(`Failed to send invoice email: ${log.errorMessage}`);
+    }
+
+    return this.emailLogRepo.save(log);
+  }
+
+  async sendEstimateEmail(
+    estimate: Estimate,
+    recipientOverride?: string,
+  ): Promise<EmailLog> {
+    const recipient = recipientOverride || estimate.clientProfile?.email;
+
+    if (!recipient) {
+      throw new Error('No recipient email available');
+    }
+
+    if (!this.configured) {
+      throw new Error(
+        'SendGrid is not configured. Set SENDGRID_API_KEY in environment.',
+      );
+    }
+
+    const pdfBuffer = await this.pdfService.generateEstimatePdf(estimate);
+
+    const senderName =
+      estimate.senderProfile?.companyName || estimate.senderProfile?.name || '';
+    const fromEmail = this.configService.get<string>(
+      'SENDGRID_FROM_EMAIL',
+      'invoices@example.com',
+    );
+    const subject = `Estimate ${estimate.estimateNumber} from ${senderName}`;
+
+    const log = this.emailLogRepo.create({
+      ownerId: estimate.ownerId,
+      estimateId: estimate.id,
+      recipient,
+      subject,
+      type: EmailType.ESTIMATE,
+      status: EmailStatus.PENDING,
+    });
+
+    try {
+      const [response] = await sgMail.send({
+        to: recipient,
+        from: { email: fromEmail, name: senderName || 'Invo' },
+        subject,
+        html: this.buildEstimateEmailHtml(estimate),
+        attachments: [
+          {
+            content: pdfBuffer.toString('base64'),
+            filename: `${estimate.estimateNumber}.pdf`,
+            type: 'application/pdf',
+            disposition: 'attachment',
+          },
+        ],
+      });
+
+      log.status = EmailStatus.SENT;
+      log.resendMessageId = response?.headers?.['x-message-id'] as string;
+    } catch (error) {
+      log.status = EmailStatus.FAILED;
+      log.errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`Failed to send estimate email: ${log.errorMessage}`);
     }
 
     return this.emailLogRepo.save(log);
@@ -222,6 +286,70 @@ export class EmailService {
 </html>`;
   }
 
+  private buildEstimateEmailHtml(estimate: Estimate): string {
+    const senderName =
+      estimate.senderProfile?.companyName || estimate.senderProfile?.name || '';
+    const clientName =
+      estimate.clientProfile?.companyName || estimate.clientProfile?.name || '';
+    const info = getCurrencyInfo(estimate.currency);
+    const totalFormatted = `${info.symbol} ${Number(estimate.total).toFixed(info.decimals)}`;
+
+    return `<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1a1a1a; margin: 0; padding: 0; background: #f5f5f0; }
+  .container { max-width: 600px; margin: 0 auto; padding: 32px 20px; }
+  .card { background: #ffffff; border-radius: 12px; padding: 32px; }
+  .header { margin-bottom: 24px; }
+  .header h1 { font-size: 24px; margin: 0 0 4px; color: #1a1a1a; }
+  .header p { color: #6b6b66; margin: 0; font-size: 14px; }
+  .details { background: #f5f5f0; border-radius: 8px; padding: 16px; margin: 20px 0; }
+  .details-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; }
+  .details-label { color: #6b6b66; }
+  .details-value { font-weight: 600; }
+  .total-row { border-top: 1px solid #e5e5e0; margin-top: 8px; padding-top: 12px; font-size: 18px; }
+  .footer { text-align: center; color: #6b6b66; font-size: 12px; padding-top: 24px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="card">
+    <div class="header">
+      <h1>Estimate from ${senderName}</h1>
+      <p>Estimate ${estimate.estimateNumber}</p>
+    </div>
+    <p>Dear ${clientName},</p>
+    <p>Please find attached estimate <strong>${estimate.estimateNumber}</strong> for your review.</p>
+    <div class="details">
+      <div class="details-row">
+        <span class="details-label">Estimate Number</span>
+        <span class="details-value">${estimate.estimateNumber}</span>
+      </div>
+      <div class="details-row">
+        <span class="details-label">Issue Date</span>
+        <span class="details-value">${estimate.issueDate}</span>
+      </div>
+      <div class="details-row">
+        <span class="details-label">Valid Until</span>
+        <span class="details-value">${estimate.validUntil}</span>
+      </div>
+      <div class="details-row total-row">
+        <span class="details-label">Total Amount</span>
+        <span class="details-value">${totalFormatted}</span>
+      </div>
+    </div>
+    <p>The complete estimate is attached as a PDF.</p>
+    <p>Thank you for your consideration!</p>
+  </div>
+  <div class="footer">
+    <p>Generated with Invo</p>
+  </div>
+</div>
+</body>
+</html>`;
+  }
+
   private buildReminderEmailHtml(
     invoice: Invoice,
     type: string,
@@ -232,7 +360,8 @@ export class EmailService {
       invoice.clientProfile?.companyName || invoice.clientProfile?.name || '';
     const info = getCurrencyInfo(invoice.currency);
     const totalFormatted = `${info.symbol} ${Number(invoice.total).toFixed(info.decimals)}`;
-    const hasLateFee = invoice.lateFeeAmount != null && Number(invoice.lateFeeAmount) > 0;
+    const hasLateFee =
+      invoice.lateFeeAmount != null && Number(invoice.lateFeeAmount) > 0;
     const lateFeeFormatted = hasLateFee
       ? `${info.symbol} ${Number(invoice.lateFeeAmount).toFixed(info.decimals)}`
       : '';

@@ -129,6 +129,43 @@ export type StreamChunk =
   | { type: 'error'; message: string }
   | { type: 'done'; conversationId: string };
 
+export type EstimateStatus = 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired' | 'converted';
+
+export interface EstimateItem {
+  id: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  amount: number;
+  sortOrder: number;
+}
+
+export interface Estimate {
+  id: string;
+  ownerId: string;
+  estimateNumber: string;
+  status: EstimateStatus;
+  senderProfileId: string;
+  clientProfileId: string;
+  bankProfileId?: string;
+  issueDate: string;
+  validUntil: string;
+  currency: string;
+  taxRate: number;
+  subtotal: number;
+  taxAmount: number;
+  total: number;
+  notes?: string;
+  pdfPath?: string;
+  convertedInvoiceId?: string;
+  senderProfile?: Profile;
+  clientProfile?: Profile;
+  bankProfile?: Profile;
+  items: EstimateItem[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface EmailLog {
   id: string;
   ownerId: string;

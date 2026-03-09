@@ -1,8 +1,38 @@
 import { Injectable } from '@nestjs/common';
 import PDFDocument from 'pdfkit';
 import { Invoice } from '../../db/entities/invoice.entity';
+import { Estimate } from '../../db/entities/estimate.entity';
 import { SettingsService } from '../settings/settings.service';
 import { getCurrencyInfo } from '../../common/constants/currencies';
+
+/** Shared shape for rendering PDFs — works for both invoices and estimates. */
+interface PdfDocumentData {
+  ownerId: string;
+  documentNumber: string;
+  status: string;
+  senderProfile: Invoice['senderProfile'];
+  clientProfile: Invoice['clientProfile'];
+  bankProfile?: Invoice['bankProfile'];
+  issueDate: string;
+  secondaryDate: string; // dueDate for invoices, validUntil for estimates
+  secondaryDateLabel: string; // "Due Date" or "Valid Until"
+  currency: string;
+  taxRate: number;
+  subtotal: number;
+  taxAmount: number;
+  total: number;
+  notes?: string;
+  lateFeeAmount?: number | null;
+  items: {
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    amount: number;
+    sortOrder: number;
+  }[];
+  title: string; // "INVOICE" or "ESTIMATE"
+  numberLabel: string; // "Invoice #" or "Estimate #"
+}
 
 type Doc = InstanceType<typeof PDFDocument>;
 
@@ -22,10 +52,88 @@ export class PdfService {
   constructor(private readonly settingsService: SettingsService) {}
 
   async generateInvoicePdf(invoice: Invoice): Promise<Buffer> {
+    const data = this.invoiceToDocumentData(invoice);
+    return this.renderDocument(data);
+  }
+
+  async generateEstimatePdf(estimate: Estimate): Promise<Buffer> {
+    const data = this.estimateToDocumentData(estimate);
+    return this.renderDocument(data);
+  }
+
+  private invoiceToDocumentData(invoice: Invoice): PdfDocumentData {
+    return {
+      ownerId: invoice.ownerId,
+      documentNumber: invoice.invoiceNumber,
+      status: invoice.status,
+      senderProfile: invoice.senderProfile,
+      clientProfile: invoice.clientProfile,
+      bankProfile: invoice.bankProfile,
+      issueDate: invoice.issueDate,
+      secondaryDate: invoice.dueDate,
+      secondaryDateLabel: 'Due Date',
+      currency: invoice.currency,
+      taxRate: Number(invoice.taxRate),
+      subtotal: Number(invoice.subtotal),
+      taxAmount: Number(invoice.taxAmount),
+      total: Number(invoice.total),
+      notes: invoice.notes,
+      lateFeeAmount: invoice.lateFeeAmount,
+      items: (invoice.items || []).map((i) => ({
+        description: i.description,
+        quantity: Number(i.quantity),
+        unitPrice: Number(i.unitPrice),
+        amount: Number(i.amount),
+        sortOrder: i.sortOrder,
+      })),
+      title: 'INVOICE',
+      numberLabel: 'Invoice #',
+    };
+  }
+
+  private estimateToDocumentData(estimate: Estimate): PdfDocumentData {
+    return {
+      ownerId: estimate.ownerId,
+      documentNumber: estimate.estimateNumber,
+      status: estimate.status,
+      senderProfile: estimate.senderProfile,
+      clientProfile: estimate.clientProfile,
+      bankProfile: estimate.bankProfile,
+      issueDate: estimate.issueDate,
+      secondaryDate: estimate.validUntil,
+      secondaryDateLabel: 'Valid Until',
+      currency: estimate.currency,
+      taxRate: Number(estimate.taxRate),
+      subtotal: Number(estimate.subtotal),
+      taxAmount: Number(estimate.taxAmount),
+      total: Number(estimate.total),
+      notes: estimate.notes,
+      lateFeeAmount: null,
+      items: (estimate.items || []).map((i) => ({
+        description: i.description,
+        quantity: Number(i.quantity),
+        unitPrice: Number(i.unitPrice),
+        amount: Number(i.amount),
+        sortOrder: i.sortOrder,
+      })),
+      title: 'ESTIMATE',
+      numberLabel: 'Estimate #',
+    };
+  }
+
+  private async renderDocument(data: PdfDocumentData): Promise<Buffer> {
     const [logoDataUrl, template, accentColor] = await Promise.all([
-      this.settingsService.getValue(invoice.ownerId, 'invoice_logo_data_url', ''),
-      this.settingsService.getValue(invoice.ownerId, 'invoice_template', 'classic'),
-      this.settingsService.getValue(invoice.ownerId, 'invoice_accent_color', '#2563eb'),
+      this.settingsService.getValue(data.ownerId, 'invoice_logo_data_url', ''),
+      this.settingsService.getValue(
+        data.ownerId,
+        'invoice_template',
+        'classic',
+      ),
+      this.settingsService.getValue(
+        data.ownerId,
+        'invoice_accent_color',
+        '#2563eb',
+      ),
     ]);
 
     return new Promise((resolve, reject) => {
@@ -41,13 +149,13 @@ export class PdfService {
 
       switch (template) {
         case 'modern':
-          this.renderModern(doc, invoice, logoDataUrl, accentColor);
+          this.renderModern(doc, data, logoDataUrl, accentColor);
           break;
         case 'bold':
-          this.renderBold(doc, invoice, logoDataUrl, accentColor);
+          this.renderBold(doc, data, logoDataUrl, accentColor);
           break;
         default:
-          this.renderClassic(doc, invoice, logoDataUrl, accentColor);
+          this.renderClassic(doc, data, logoDataUrl, accentColor);
           break;
       }
 
@@ -59,18 +167,40 @@ export class PdfService {
   // CLASSIC TEMPLATE — refined version of original layout
   // ---------------------------------------------------------------------------
 
-  private renderClassic(doc: Doc, invoice: Invoice, logoDataUrl: string, accent: string) {
-    const partiesStartY = this.classicHeader(doc, invoice, logoDataUrl, accent);
-    const partiesBottomY = this.drawParties(doc, invoice, partiesStartY, 50, 300);
+  private renderClassic(
+    doc: Doc,
+    data: PdfDocumentData,
+    logoDataUrl: string,
+    accent: string,
+  ) {
+    const partiesStartY = this.classicHeader(doc, data, logoDataUrl, accent);
+    const partiesBottomY = this.drawParties(doc, data, partiesStartY, 50, 300);
     const tableTop = Math.max(310, partiesBottomY + 24);
-    const tableBottomY = this.drawItemsTable(doc, invoice, tableTop, '#f3f4f6', '#374151');
-    const totalsBottomY = this.drawTotals(doc, invoice, tableBottomY + 14, '#f8fafc', '#d1d5db');
-    const bankBottomY = this.drawBankDetails(doc, invoice, totalsBottomY + 16);
-    this.drawNotes(doc, invoice, bankBottomY + 14);
+    const tableBottomY = this.drawItemsTable(
+      doc,
+      data,
+      tableTop,
+      '#f3f4f6',
+      '#374151',
+    );
+    const totalsBottomY = this.drawTotals(
+      doc,
+      data,
+      tableBottomY + 14,
+      '#f8fafc',
+      '#d1d5db',
+    );
+    const bankBottomY = this.drawBankDetails(doc, data, totalsBottomY + 16);
+    this.drawNotes(doc, data, bankBottomY + 14);
     this.drawFooter(doc, '#999999');
   }
 
-  private classicHeader(doc: Doc, invoice: Invoice, logoDataUrl: string, accent: string): number {
+  private classicHeader(
+    doc: Doc,
+    data: PdfDocumentData,
+    logoDataUrl: string,
+    accent: string,
+  ): number {
     let hasLogo = false;
     const logoBuffer = this.decodeLogoDataUrl(logoDataUrl);
     if (logoBuffer) {
@@ -84,20 +214,35 @@ export class PdfService {
 
     const titleY = hasLogo ? 102 : 50;
 
-    doc.fillColor('#111827').fontSize(30).font('Helvetica-Bold').text('INVOICE', 50, titleY);
+    doc
+      .fillColor('#111827')
+      .fontSize(30)
+      .font('Helvetica-Bold')
+      .text(data.title, 50, titleY);
 
     const rightX = 350;
     doc
       .fontSize(10)
       .font('Helvetica')
       .fillColor('#374151')
-      .text(`Invoice #: ${invoice.invoiceNumber}`, rightX, 50, { align: 'right' })
-      .text(`Status: ${invoice.status.toUpperCase()}`, rightX, 65, { align: 'right' })
-      .text(`Issue Date: ${invoice.issueDate}`, rightX, 80, { align: 'right' })
-      .text(`Due Date: ${invoice.dueDate}`, rightX, 95, { align: 'right' });
+      .text(`${data.numberLabel}: ${data.documentNumber}`, rightX, 50, {
+        align: 'right',
+      })
+      .text(`Status: ${data.status.toUpperCase()}`, rightX, 65, {
+        align: 'right',
+      })
+      .text(`Issue Date: ${data.issueDate}`, rightX, 80, { align: 'right' })
+      .text(`${data.secondaryDateLabel}: ${data.secondaryDate}`, rightX, 95, {
+        align: 'right',
+      });
 
     const dividerY = hasLogo ? 136 : 120;
-    doc.moveTo(50, dividerY).lineTo(545, dividerY).strokeColor(accent).lineWidth(1.5).stroke();
+    doc
+      .moveTo(50, dividerY)
+      .lineTo(545, dividerY)
+      .strokeColor(accent)
+      .lineWidth(1.5)
+      .stroke();
 
     return dividerY + 18;
   }
@@ -106,18 +251,40 @@ export class PdfService {
   // MODERN TEMPLATE — full-width colored header, clean lines
   // ---------------------------------------------------------------------------
 
-  private renderModern(doc: Doc, invoice: Invoice, logoDataUrl: string, accent: string) {
-    const headerBottomY = this.modernHeader(doc, invoice, logoDataUrl, accent);
-    const partiesBottomY = this.drawParties(doc, invoice, headerBottomY + 10, 50, 300);
+  private renderModern(
+    doc: Doc,
+    data: PdfDocumentData,
+    logoDataUrl: string,
+    accent: string,
+  ) {
+    const headerBottomY = this.modernHeader(doc, data, logoDataUrl, accent);
+    const partiesBottomY = this.drawParties(
+      doc,
+      data,
+      headerBottomY + 10,
+      50,
+      300,
+    );
     const tableTop = Math.max(310, partiesBottomY + 24);
-    const tableBottomY = this.modernItemsTable(doc, invoice, tableTop, accent);
-    const totalsBottomY = this.drawTotals(doc, invoice, tableBottomY + 14, lighten(accent, 0.9), accent);
-    const bankBottomY = this.drawBankDetails(doc, invoice, totalsBottomY + 16);
-    this.drawNotes(doc, invoice, bankBottomY + 14);
+    const tableBottomY = this.modernItemsTable(doc, data, tableTop, accent);
+    const totalsBottomY = this.drawTotals(
+      doc,
+      data,
+      tableBottomY + 14,
+      lighten(accent, 0.9),
+      accent,
+    );
+    const bankBottomY = this.drawBankDetails(doc, data, totalsBottomY + 16);
+    this.drawNotes(doc, data, bankBottomY + 14);
     this.drawFooter(doc, '#999999');
   }
 
-  private modernHeader(doc: Doc, invoice: Invoice, logoDataUrl: string, accent: string): number {
+  private modernHeader(
+    doc: Doc,
+    data: PdfDocumentData,
+    logoDataUrl: string,
+    accent: string,
+  ): number {
     // Full-width accent header bar
     doc.rect(0, 0, doc.page.width, 90).fill(accent);
 
@@ -134,23 +301,36 @@ export class PdfService {
     }
 
     // Title on header bar
-    doc.fillColor('#ffffff').fontSize(26).font('Helvetica-Bold').text('INVOICE', titleX, 30);
+    doc
+      .fillColor('#ffffff')
+      .fontSize(26)
+      .font('Helvetica-Bold')
+      .text(data.title, titleX, 30);
 
     // Metadata on right in white
     doc
       .fontSize(9)
       .font('Helvetica')
       .fillColor('#ffffff')
-      .text(`#${invoice.invoiceNumber}`, 350, 22, { align: 'right' })
-      .text(`Status: ${invoice.status.toUpperCase()}`, 350, 36, { align: 'right' })
-      .text(`Issued: ${invoice.issueDate}`, 350, 50, { align: 'right' })
-      .text(`Due: ${invoice.dueDate}`, 350, 64, { align: 'right' });
+      .text(`#${data.documentNumber}`, 350, 22, { align: 'right' })
+      .text(`Status: ${data.status.toUpperCase()}`, 350, 36, {
+        align: 'right',
+      })
+      .text(`Issued: ${data.issueDate}`, 350, 50, { align: 'right' })
+      .text(`${data.secondaryDateLabel}: ${data.secondaryDate}`, 350, 64, {
+        align: 'right',
+      });
 
     return 104;
   }
 
-  private modernItemsTable(doc: Doc, invoice: Invoice, tableTop: number, accent: string): number {
-    const currency = invoice.currency;
+  private modernItemsTable(
+    doc: Doc,
+    data: PdfDocumentData,
+    tableTop: number,
+    accent: string,
+  ): number {
+    const currency = data.currency;
     const rowHeight = 24;
 
     // No filled header — just accent-colored underline
@@ -161,30 +341,56 @@ export class PdfService {
     doc.text('Unit Price', 365, tableTop + 4, { width: 70, align: 'right' });
     doc.text('Amount', 440, tableTop + 4, { width: 100, align: 'right' });
 
-    doc.moveTo(50, tableTop + 20).lineTo(545, tableTop + 20).strokeColor(accent).lineWidth(1).stroke();
+    doc
+      .moveTo(50, tableTop + 20)
+      .lineTo(545, tableTop + 20)
+      .strokeColor(accent)
+      .lineWidth(1)
+      .stroke();
 
     doc.font('Helvetica').fontSize(9).fillColor('#111827');
     let rowY = tableTop + 28;
 
-    const items = invoice.items?.sort((a, b) => a.sortOrder - b.sortOrder) || [];
+    const items = [...(data.items || [])].sort(
+      (a, b) => a.sortOrder - b.sortOrder,
+    );
     items.forEach((item, i) => {
       // Subtle separator between rows
       if (i > 0) {
-        doc.moveTo(50, rowY - 4).lineTo(545, rowY - 4).strokeColor('#e5e7eb').lineWidth(0.5).stroke();
+        doc
+          .moveTo(50, rowY - 4)
+          .lineTo(545, rowY - 4)
+          .strokeColor('#e5e7eb')
+          .lineWidth(0.5)
+          .stroke();
       }
 
       doc.fillColor('#111827');
       doc.text(`${i + 1}`, 55, rowY, { width: 25 });
       doc.text(item.description, 80, rowY, { width: 220, ellipsis: true });
-      doc.text(Number(item.quantity).toFixed(2), 300, rowY, { width: 60, align: 'right' });
-      doc.text(this.formatAmount(Number(item.unitPrice), currency), 365, rowY, { width: 70, align: 'right' });
-      doc.text(this.formatAmount(Number(item.amount), currency), 440, rowY, { width: 100, align: 'right' });
+      doc.text(item.quantity.toFixed(2), 300, rowY, {
+        width: 60,
+        align: 'right',
+      });
+      doc.text(this.formatAmount(item.unitPrice, currency), 365, rowY, {
+        width: 70,
+        align: 'right',
+      });
+      doc.text(this.formatAmount(item.amount, currency), 440, rowY, {
+        width: 100,
+        align: 'right',
+      });
 
       rowY += rowHeight;
     });
 
     const bottomY = rowY + 6;
-    doc.moveTo(50, bottomY).lineTo(545, bottomY).strokeColor(accent).lineWidth(0.5).stroke();
+    doc
+      .moveTo(50, bottomY)
+      .lineTo(545, bottomY)
+      .strokeColor(accent)
+      .lineWidth(0.5)
+      .stroke();
     return bottomY;
   }
 
@@ -192,66 +398,140 @@ export class PdfService {
   // BOLD TEMPLATE — left accent sidebar, dramatic layout
   // ---------------------------------------------------------------------------
 
-  private renderBold(doc: Doc, invoice: Invoice, logoDataUrl: string, accent: string) {
+  private renderBold(
+    doc: Doc,
+    data: PdfDocumentData,
+    logoDataUrl: string,
+    accent: string,
+  ) {
     // Full-height left sidebar
     const sidebarW = 56;
     doc.rect(0, 0, sidebarW, doc.page.height).fill(accent);
 
-    // Rotated "INVOICE" text in sidebar
+    // Rotated title text in sidebar
     doc.save();
     doc.translate(36, 200);
     doc.rotate(-90);
-    doc.fillColor('#ffffff').fontSize(22).font('Helvetica-Bold').text('INVOICE', 0, 0);
+    doc
+      .fillColor('#ffffff')
+      .fontSize(22)
+      .font('Helvetica-Bold')
+      .text(data.title, 0, 0);
     doc.restore();
 
     const contentX = sidebarW + 20;
     const rightEdge = 545;
     const contentWidth = rightEdge - contentX;
 
-    const headerBottomY = this.boldHeader(doc, invoice, logoDataUrl, accent, contentX, contentWidth);
-    const partiesBottomY = this.drawParties(doc, invoice, headerBottomY + 10, contentX, contentX + 240);
+    const headerBottomY = this.boldHeader(
+      doc,
+      data,
+      logoDataUrl,
+      accent,
+      contentX,
+      contentWidth,
+    );
+    const partiesBottomY = this.drawParties(
+      doc,
+      data,
+      headerBottomY + 10,
+      contentX,
+      contentX + 240,
+    );
     const tableTop = Math.max(310, partiesBottomY + 24);
-    const tableBottomY = this.boldItemsTable(doc, invoice, tableTop, accent, contentX, rightEdge);
-    const totalsBottomY = this.drawTotals(doc, invoice, tableBottomY + 14, lighten(accent, 0.92), accent);
-    const bankBottomY = this.drawBankDetails(doc, invoice, totalsBottomY + 16, contentX);
-    this.drawNotes(doc, invoice, bankBottomY + 14, contentX, contentWidth);
+    const tableBottomY = this.boldItemsTable(
+      doc,
+      data,
+      tableTop,
+      accent,
+      contentX,
+      rightEdge,
+    );
+    const totalsBottomY = this.drawTotals(
+      doc,
+      data,
+      tableBottomY + 14,
+      lighten(accent, 0.92),
+      accent,
+    );
+    const bankBottomY = this.drawBankDetails(
+      doc,
+      data,
+      totalsBottomY + 16,
+      contentX,
+    );
+    this.drawNotes(doc, data, bankBottomY + 14, contentX, contentWidth);
     this.drawFooter(doc, accent, contentX, contentWidth);
   }
 
-  private boldHeader(doc: Doc, invoice: Invoice, logoDataUrl: string, accent: string, contentX: number, contentWidth: number): number {
+  private boldHeader(
+    doc: Doc,
+    data: PdfDocumentData,
+    logoDataUrl: string,
+    accent: string,
+    contentX: number,
+    contentWidth: number,
+  ): number {
     const logoBuffer = this.decodeLogoDataUrl(logoDataUrl);
     let y = 42;
 
     if (logoBuffer) {
       try {
-        doc.image(logoBuffer, contentX, y, { fit: [120, 48], valign: 'center' });
+        doc.image(logoBuffer, contentX, y, {
+          fit: [120, 48],
+          valign: 'center',
+        });
         y += 58;
       } catch {
         /* ignore */
       }
     }
 
-    // Invoice number large
-    doc.fillColor('#111827').fontSize(24).font('Helvetica-Bold').text(invoice.invoiceNumber, contentX, y);
+    // Document number large
+    doc
+      .fillColor('#111827')
+      .fontSize(24)
+      .font('Helvetica-Bold')
+      .text(data.documentNumber, contentX, y);
     y += 30;
 
     // Status pill
-    doc.fillColor(accent).fontSize(10).font('Helvetica-Bold').text(invoice.status.toUpperCase(), contentX, y);
+    doc
+      .fillColor(accent)
+      .fontSize(10)
+      .font('Helvetica-Bold')
+      .text(data.status.toUpperCase(), contentX, y);
     y += 18;
 
     // Dates
     doc.fillColor('#374151').fontSize(9).font('Helvetica');
-    doc.text(`Issued: ${invoice.issueDate}  |  Due: ${invoice.dueDate}`, contentX, y);
+    doc.text(
+      `Issued: ${data.issueDate}  |  ${data.secondaryDateLabel}: ${data.secondaryDate}`,
+      contentX,
+      y,
+    );
     y += 16;
 
     // Bold accent divider
-    doc.moveTo(contentX, y).lineTo(contentX + contentWidth, y).strokeColor(accent).lineWidth(3).stroke();
+    doc
+      .moveTo(contentX, y)
+      .lineTo(contentX + contentWidth, y)
+      .strokeColor(accent)
+      .lineWidth(3)
+      .stroke();
 
     return y + 10;
   }
 
-  private boldItemsTable(doc: Doc, invoice: Invoice, tableTop: number, accent: string, contentX: number, rightEdge: number): number {
-    const currency = invoice.currency;
+  private boldItemsTable(
+    doc: Doc,
+    data: PdfDocumentData,
+    tableTop: number,
+    accent: string,
+    contentX: number,
+    rightEdge: number,
+  ): number {
+    const currency = data.currency;
     const rowHeight = 24;
     const headerHeight = 26;
     const tableWidth = rightEdge - contentX;
@@ -262,31 +542,64 @@ export class PdfService {
     doc.fillColor('#ffffff').fontSize(9).font('Helvetica-Bold');
     doc.text('#', contentX + 8, tableTop + 8, { width: 25 });
     doc.text('Description', contentX + 33, tableTop + 8, { width: 200 });
-    doc.text('Qty', contentX + 235, tableTop + 8, { width: 55, align: 'right' });
-    doc.text('Unit Price', contentX + 295, tableTop + 8, { width: 70, align: 'right' });
-    doc.text('Amount', contentX + 370, tableTop + 8, { width: 90, align: 'right' });
+    doc.text('Qty', contentX + 235, tableTop + 8, {
+      width: 55,
+      align: 'right',
+    });
+    doc.text('Unit Price', contentX + 295, tableTop + 8, {
+      width: 70,
+      align: 'right',
+    });
+    doc.text('Amount', contentX + 370, tableTop + 8, {
+      width: 90,
+      align: 'right',
+    });
 
     doc.font('Helvetica').fontSize(9).fillColor('#111827');
     let rowY = tableTop + headerHeight + 6;
 
-    const items = invoice.items?.sort((a, b) => a.sortOrder - b.sortOrder) || [];
+    const items = [...(data.items || [])].sort(
+      (a, b) => a.sortOrder - b.sortOrder,
+    );
     items.forEach((item, i) => {
       if (i % 2 === 1) {
-        doc.rect(contentX, rowY - 4, tableWidth, rowHeight).fill('#f9fafb').stroke();
+        doc
+          .rect(contentX, rowY - 4, tableWidth, rowHeight)
+          .fill('#f9fafb')
+          .stroke();
         doc.fillColor('#111827');
       }
 
       doc.text(`${i + 1}`, contentX + 8, rowY, { width: 25 });
-      doc.text(item.description, contentX + 33, rowY, { width: 200, ellipsis: true });
-      doc.text(Number(item.quantity).toFixed(2), contentX + 235, rowY, { width: 55, align: 'right' });
-      doc.text(this.formatAmount(Number(item.unitPrice), currency), contentX + 295, rowY, { width: 70, align: 'right' });
-      doc.text(this.formatAmount(Number(item.amount), currency), contentX + 370, rowY, { width: 90, align: 'right' });
+      doc.text(item.description, contentX + 33, rowY, {
+        width: 200,
+        ellipsis: true,
+      });
+      doc.text(item.quantity.toFixed(2), contentX + 235, rowY, {
+        width: 55,
+        align: 'right',
+      });
+      doc.text(
+        this.formatAmount(item.unitPrice, currency),
+        contentX + 295,
+        rowY,
+        { width: 70, align: 'right' },
+      );
+      doc.text(this.formatAmount(item.amount, currency), contentX + 370, rowY, {
+        width: 90,
+        align: 'right',
+      });
 
       rowY += rowHeight;
     });
 
     const bottomY = rowY + 6;
-    doc.moveTo(contentX, bottomY).lineTo(rightEdge, bottomY).strokeColor(accent).lineWidth(1).stroke();
+    doc
+      .moveTo(contentX, bottomY)
+      .lineTo(rightEdge, bottomY)
+      .strokeColor(accent)
+      .lineWidth(1)
+      .stroke();
     return bottomY;
   }
 
@@ -294,12 +607,22 @@ export class PdfService {
   // SHARED HELPERS — used across all templates
   // ---------------------------------------------------------------------------
 
-  private drawParties(doc: Doc, invoice: Invoice, y: number, fromX: number, toX: number): number {
-    const sender = invoice.senderProfile;
-    const client = invoice.clientProfile;
+  private drawParties(
+    doc: Doc,
+    data: PdfDocumentData,
+    y: number,
+    fromX: number,
+    toX: number,
+  ): number {
+    const sender = data.senderProfile;
+    const client = data.clientProfile;
 
     // From
-    doc.fontSize(10).font('Helvetica-Bold').fillColor('#111827').text('From:', fromX, y);
+    doc
+      .fontSize(10)
+      .font('Helvetica-Bold')
+      .fillColor('#111827')
+      .text('From:', fromX, y);
     doc.fontSize(10).font('Helvetica');
     let fromY = y + 15;
     if (sender.companyName) {
@@ -319,7 +642,9 @@ export class PdfService {
       doc.text(sender.addressLine2, fromX, fromY);
       fromY += 14;
     }
-    const cityLine = [sender.city, sender.state, sender.postalCode].filter(Boolean).join(', ');
+    const cityLine = [sender.city, sender.state, sender.postalCode]
+      .filter(Boolean)
+      .join(', ');
     if (cityLine) {
       doc.text(cityLine, fromX, fromY);
       fromY += 14;
@@ -362,7 +687,9 @@ export class PdfService {
       doc.text(client.addressLine2, toX, toY);
       toY += 14;
     }
-    const clientCityLine = [client.city, client.state, client.postalCode].filter(Boolean).join(', ');
+    const clientCityLine = [client.city, client.state, client.postalCode]
+      .filter(Boolean)
+      .join(', ');
     if (clientCityLine) {
       doc.text(clientCityLine, toX, toY);
       toY += 14;
@@ -387,8 +714,14 @@ export class PdfService {
     return Math.max(fromY, toY);
   }
 
-  private drawItemsTable(doc: Doc, invoice: Invoice, tableTop: number, headerBg: string, headerText: string): number {
-    const currency = invoice.currency;
+  private drawItemsTable(
+    doc: Doc,
+    data: PdfDocumentData,
+    tableTop: number,
+    headerBg: string,
+    headerText: string,
+  ): number {
+    const currency = data.currency;
     const rowHeight = 24;
     const headerHeight = 24;
 
@@ -404,30 +737,56 @@ export class PdfService {
     doc.font('Helvetica').fontSize(9).fillColor('#111827');
     let rowY = tableTop + headerHeight + 6;
 
-    const items = invoice.items?.sort((a, b) => a.sortOrder - b.sortOrder) || [];
+    const items = [...(data.items || [])].sort(
+      (a, b) => a.sortOrder - b.sortOrder,
+    );
     items.forEach((item, i) => {
       if (i % 2 === 1) {
-        doc.rect(50, rowY - 4, 495, rowHeight).fill('#f9fafb').stroke();
+        doc
+          .rect(50, rowY - 4, 495, rowHeight)
+          .fill('#f9fafb')
+          .stroke();
         doc.fillColor('#111827');
       }
 
       doc.text(`${i + 1}`, 55, rowY, { width: 25 });
       doc.text(item.description, 80, rowY, { width: 220, ellipsis: true });
-      doc.text(Number(item.quantity).toFixed(2), 300, rowY, { width: 60, align: 'right' });
-      doc.text(this.formatAmount(Number(item.unitPrice), currency), 365, rowY, { width: 70, align: 'right' });
-      doc.text(this.formatAmount(Number(item.amount), currency), 440, rowY, { width: 100, align: 'right' });
+      doc.text(item.quantity.toFixed(2), 300, rowY, {
+        width: 60,
+        align: 'right',
+      });
+      doc.text(this.formatAmount(item.unitPrice, currency), 365, rowY, {
+        width: 70,
+        align: 'right',
+      });
+      doc.text(this.formatAmount(item.amount, currency), 440, rowY, {
+        width: 100,
+        align: 'right',
+      });
 
       rowY += rowHeight;
     });
 
     const bottomY = rowY + 6;
-    doc.moveTo(50, bottomY).lineTo(545, bottomY).strokeColor('#cccccc').lineWidth(0.5).stroke();
+    doc
+      .moveTo(50, bottomY)
+      .lineTo(545, bottomY)
+      .strokeColor('#cccccc')
+      .lineWidth(0.5)
+      .stroke();
     return bottomY;
   }
 
-  private drawTotals(doc: Doc, invoice: Invoice, totalsY: number, panelBg: string, panelBorder: string): number {
-    const currency = invoice.currency;
-    const hasLateFee = invoice.lateFeeAmount != null && Number(invoice.lateFeeAmount) > 0;
+  private drawTotals(
+    doc: Doc,
+    data: PdfDocumentData,
+    totalsY: number,
+    panelBg: string,
+    panelBorder: string,
+  ): number {
+    const currency = data.currency;
+    const hasLateFee =
+      data.lateFeeAmount != null && Number(data.lateFeeAmount) > 0;
     const panelX = 360;
     const panelWidth = 185;
     const panelHeight = hasLateFee ? 120 : 96;
@@ -436,45 +795,86 @@ export class PdfService {
     const subtotalY = totalsY + 14;
     const taxY = subtotalY + 24;
 
-    doc.roundedRect(panelX, totalsY, panelWidth, panelHeight, 8).fillAndStroke(panelBg, panelBorder);
+    doc
+      .roundedRect(panelX, totalsY, panelWidth, panelHeight, 8)
+      .fillAndStroke(panelBg, panelBorder);
 
     doc.fontSize(10).font('Helvetica').fillColor('#374151');
     doc.text('Subtotal:', labelX, subtotalY, { width: 55, align: 'right' });
-    doc.text(this.formatAmount(Number(invoice.subtotal), currency), valueX, subtotalY, { width: 100, align: 'right' });
+    doc.text(this.formatAmount(data.subtotal, currency), valueX, subtotalY, {
+      width: 100,
+      align: 'right',
+    });
 
-    doc.text(`Tax (${Number(invoice.taxRate).toFixed(1)}%):`, labelX, taxY, { width: 55, align: 'right' });
-    doc.text(this.formatAmount(Number(invoice.taxAmount), currency), valueX, taxY, { width: 100, align: 'right' });
+    doc.text(`Tax (${data.taxRate.toFixed(1)}%):`, labelX, taxY, {
+      width: 55,
+      align: 'right',
+    });
+    doc.text(this.formatAmount(data.taxAmount, currency), valueX, taxY, {
+      width: 100,
+      align: 'right',
+    });
 
     let nextY = taxY + 24;
 
     if (hasLateFee) {
       doc.fontSize(10).font('Helvetica').fillColor('#dc2626');
       doc.text('Late Fee:', labelX, nextY, { width: 55, align: 'right' });
-      doc.text(this.formatAmount(Number(invoice.lateFeeAmount), currency), valueX, nextY, { width: 100, align: 'right' });
+      doc.text(
+        this.formatAmount(Number(data.lateFeeAmount), currency),
+        valueX,
+        nextY,
+        { width: 100, align: 'right' },
+      );
       nextY += 20;
     } else {
       nextY -= 4;
     }
 
-    doc.moveTo(panelX + 12, nextY).lineTo(panelX + panelWidth - 12, nextY).strokeColor('#333333').lineWidth(1).stroke();
+    doc
+      .moveTo(panelX + 12, nextY)
+      .lineTo(panelX + panelWidth - 12, nextY)
+      .strokeColor('#333333')
+      .lineWidth(1)
+      .stroke();
 
     const totalY = nextY + 10;
-    const totalDue = Number(invoice.total) + (hasLateFee ? Number(invoice.lateFeeAmount) : 0);
+    const totalDue = data.total + (hasLateFee ? Number(data.lateFeeAmount) : 0);
 
     doc.fontSize(13).font('Helvetica-Bold').fillColor('#111827');
-    doc.text(hasLateFee ? 'Total Due:' : 'Total:', labelX, totalY, { width: 55, align: 'right' });
-    doc.text(this.formatAmount(totalDue, currency), valueX, totalY, { width: 100, align: 'right' });
+    doc.text(hasLateFee ? 'Total Due:' : 'Total:', labelX, totalY, {
+      width: 55,
+      align: 'right',
+    });
+    doc.text(this.formatAmount(totalDue, currency), valueX, totalY, {
+      width: 100,
+      align: 'right',
+    });
 
     return totalsY + panelHeight;
   }
 
-  private drawBankDetails(doc: Doc, invoice: Invoice, bankY: number, startX = 50): number {
-    const bank = invoice.bankProfile;
+  private drawBankDetails(
+    doc: Doc,
+    data: PdfDocumentData,
+    bankY: number,
+    startX = 50,
+  ): number {
+    const bank = data.bankProfile;
     if (!bank) return bankY;
 
-    doc.moveTo(startX, bankY).lineTo(545, bankY).strokeColor('#cccccc').lineWidth(0.5).stroke();
+    doc
+      .moveTo(startX, bankY)
+      .lineTo(545, bankY)
+      .strokeColor('#cccccc')
+      .lineWidth(0.5)
+      .stroke();
 
-    doc.fontSize(10).font('Helvetica-Bold').fillColor('#333333').text('Bank Details', startX, bankY + 10);
+    doc
+      .fontSize(10)
+      .font('Helvetica-Bold')
+      .fillColor('#333333')
+      .text('Bank Details', startX, bankY + 10);
 
     doc.fontSize(9).font('Helvetica').fillColor('#374151');
     let y = bankY + 26;
@@ -498,14 +898,28 @@ export class PdfService {
     return y;
   }
 
-  private drawNotes(doc: Doc, invoice: Invoice, notesY: number, startX = 50, width = 495): number {
-    if (!invoice.notes) return notesY;
+  private drawNotes(
+    doc: Doc,
+    data: PdfDocumentData,
+    notesY: number,
+    startX = 50,
+    width = 495,
+  ): number {
+    if (!data.notes) return notesY;
 
-    doc.fontSize(10).font('Helvetica-Bold').fillColor('#333333').text('Notes', startX, notesY);
+    doc
+      .fontSize(10)
+      .font('Helvetica-Bold')
+      .fillColor('#333333')
+      .text('Notes', startX, notesY);
 
     const textY = notesY + 16;
-    const textHeight = doc.heightOfString(invoice.notes, { width });
-    doc.fontSize(9).font('Helvetica').fillColor('#666666').text(invoice.notes, startX, textY, { width });
+    const textHeight = doc.heightOfString(data.notes, { width });
+    doc
+      .fontSize(9)
+      .font('Helvetica')
+      .fillColor('#666666')
+      .text(data.notes, startX, textY, { width });
 
     return textY + textHeight;
   }

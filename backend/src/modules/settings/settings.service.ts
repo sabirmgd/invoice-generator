@@ -27,6 +27,16 @@ const DEFAULT_SETTINGS: { key: string; value: string; description: string }[] =
       value: '',
       description: 'Optional logo data URL for invoice header (PNG/JPG/WEBP)',
     },
+    {
+      key: 'estimate_prefix',
+      value: 'EST',
+      description: 'Prefix for estimate numbers',
+    },
+    {
+      key: 'estimate_next_number',
+      value: '1',
+      description: 'Next estimate sequence number',
+    },
   ];
 
 @Injectable()

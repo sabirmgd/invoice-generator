@@ -10,6 +10,7 @@ import { FileProcessorService } from './services/file-processor.service';
 import { SettingsModule } from '../settings/settings.module';
 import { ProfilesModule } from '../profiles/profiles.module';
 import { InvoicesModule } from '../invoices/invoices.module';
+import { EstimatesModule } from '../estimates/estimates.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { InvoicesModule } from '../invoices/invoices.module';
     SettingsModule,
     ProfilesModule,
     InvoicesModule,
+    EstimatesModule,
   ],
   controllers: [ChatbotController],
   providers: [

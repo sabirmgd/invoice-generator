@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { buildAuthHeaders, getApiBaseUrl, parseApiResponse } from '@/lib/api';
-import { Invoice, Paginated, Profile, Setting } from '@/lib/types';
+import { Estimate, Invoice, Paginated, Profile, Setting } from '@/lib/types';
 
 const API_BASE = getApiBaseUrl();
 
@@ -32,6 +32,7 @@ async function fetchJson<T>(
 
 export function useWorkspaceData(sessionId: string, authToken: string) {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [estimates, setEstimates] = useState<Estimate[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [settings, setSettings] = useState<Setting[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(false);
@@ -44,13 +45,15 @@ export function useWorkspaceData(sessionId: string, authToken: string) {
     setError('');
 
     try {
-      const [invoicePayload, profilePayload, settingPayload] = await Promise.all([
+      const [invoicePayload, estimatePayload, profilePayload, settingPayload] = await Promise.all([
         fetchJson<Paginated<Invoice>>('/api/v1/invoices?page=1&limit=30', sessionId, authToken || undefined),
+        fetchJson<Paginated<Estimate>>('/api/v1/estimates?page=1&limit=30', sessionId, authToken || undefined),
         fetchJson<Paginated<Profile>>('/api/v1/profiles?page=1&limit=100', sessionId, authToken || undefined),
         fetchJson<Setting[]>('/api/v1/settings', sessionId, authToken || undefined),
       ]);
 
       setInvoices(invoicePayload.items);
+      setEstimates(estimatePayload.items);
       setProfiles(profilePayload.items);
       setSettings(settingPayload);
       return { invoices: invoicePayload.items };
@@ -97,6 +100,7 @@ export function useWorkspaceData(sessionId: string, authToken: string) {
 
   return {
     invoices,
+    estimates,
     profiles,
     settings,
     isLoadingData,

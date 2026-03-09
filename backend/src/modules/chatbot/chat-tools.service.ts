@@ -4,8 +4,10 @@ import { DynamicStructuredTool } from '@langchain/core/tools';
 import { SettingsService } from '../settings/settings.service';
 import { ProfilesService } from '../profiles/profiles.service';
 import { InvoicesService } from '../invoices/invoices.service';
+import { EstimatesService } from '../estimates/estimates.service';
 import { ProfileType } from '../../db/entities/profile.entity';
 import { InvoiceStatus } from '../../db/entities/invoice.entity';
+import { EstimateStatus } from '../../db/entities/estimate.entity';
 
 @Injectable()
 export class ChatToolsService {
@@ -13,6 +15,7 @@ export class ChatToolsService {
     private readonly settings: SettingsService,
     private readonly profiles: ProfilesService,
     private readonly invoices: InvoicesService,
+    private readonly estimates: EstimatesService,
   ) {}
 
   buildTools(ownerId: string): DynamicStructuredTool[] {
@@ -376,6 +379,177 @@ export class ChatToolsService {
             taxRate,
             taxAmount: taxAmount.toFixed(2),
             total: total.toFixed(2),
+          });
+        },
+      }),
+
+      // ---- Estimate tools ----
+
+      new DynamicStructuredTool({
+        name: 'create_estimate',
+        description: 'Create a new estimate/quote with line items',
+        schema: z.object({
+          senderProfileId: z
+            .string()
+            .uuid()
+            .describe('UUID of the sender profile'),
+          clientProfileId: z
+            .string()
+            .uuid()
+            .describe('UUID of the client profile'),
+          bankProfileId: z
+            .string()
+            .uuid()
+            .optional()
+            .describe('UUID of the bank profile'),
+          issueDate: z.string().describe('Issue date in YYYY-MM-DD format'),
+          validUntil: z
+            .string()
+            .describe('Validity end date in YYYY-MM-DD format'),
+          currency: z
+            .string()
+            .optional()
+            .describe('Currency code (defaults to settings)'),
+          taxRate: z
+            .number()
+            .optional()
+            .describe('Tax rate percentage (defaults to settings)'),
+          notes: z.string().optional(),
+          items: z
+            .array(
+              z.object({
+                description: z.string(),
+                quantity: z.number(),
+                unitPrice: z.number(),
+              }),
+            )
+            .min(1)
+            .describe('Estimate line items'),
+        }),
+        func: async (input) => {
+          const estimate = await this.estimates.create(ownerId, input);
+          return JSON.stringify({
+            id: estimate.id,
+            estimateNumber: estimate.estimateNumber,
+            status: estimate.status,
+            subtotal: Number(estimate.subtotal).toFixed(2),
+            taxAmount: Number(estimate.taxAmount).toFixed(2),
+            total: Number(estimate.total).toFixed(2),
+            currency: estimate.currency,
+            clientName: estimate.clientProfile?.name,
+          });
+        },
+      }),
+
+      new DynamicStructuredTool({
+        name: 'list_estimates',
+        description: 'List estimates with optional status filter',
+        schema: z.object({
+          status: z
+            .enum([
+              'draft',
+              'sent',
+              'accepted',
+              'rejected',
+              'expired',
+              'converted',
+            ])
+            .optional(),
+          page: z.number().optional().default(1),
+          limit: z.number().optional().default(20),
+        }),
+        func: async (input) => {
+          const result = await this.estimates.findAll(ownerId, {
+            status: input.status as EstimateStatus | undefined,
+            page: input.page,
+            limit: input.limit,
+          });
+          return JSON.stringify({
+            items: result.items.map((est) => ({
+              id: est.id,
+              estimateNumber: est.estimateNumber,
+              client: est.clientProfile?.name,
+              total: `${est.currency} ${Number(est.total).toFixed(2)}`,
+              status: est.status,
+              validUntil: est.validUntil,
+            })),
+            pagination: result.pagination,
+          });
+        },
+      }),
+
+      new DynamicStructuredTool({
+        name: 'get_estimate',
+        description: 'Get full details of a specific estimate by ID',
+        schema: z.object({
+          id: z.string().uuid().describe('Estimate UUID'),
+        }),
+        func: async (input) => {
+          const est = await this.estimates.findOne(ownerId, input.id);
+          return JSON.stringify({
+            id: est.id,
+            estimateNumber: est.estimateNumber,
+            status: est.status,
+            sender: est.senderProfile?.name,
+            client: est.clientProfile?.name,
+            issueDate: est.issueDate,
+            validUntil: est.validUntil,
+            currency: est.currency,
+            taxRate: est.taxRate,
+            items: est.items.map((item) => ({
+              description: item.description,
+              quantity: Number(item.quantity),
+              unitPrice: Number(item.unitPrice),
+              amount: Number(item.amount),
+            })),
+            subtotal: Number(est.subtotal).toFixed(2),
+            taxAmount: Number(est.taxAmount).toFixed(2),
+            total: Number(est.total).toFixed(2),
+            notes: est.notes,
+            convertedInvoiceId: est.convertedInvoiceId,
+          });
+        },
+      }),
+
+      new DynamicStructuredTool({
+        name: 'update_estimate_status',
+        description:
+          'Change the status of an estimate (draft, sent, accepted, rejected, expired)',
+        schema: z.object({
+          id: z.string().uuid().describe('Estimate UUID'),
+          status: z.enum(['draft', 'sent', 'accepted', 'rejected', 'expired']),
+        }),
+        func: async (input) => {
+          const est = await this.estimates.updateStatus(ownerId, input.id, {
+            status: input.status as EstimateStatus,
+          });
+          return JSON.stringify({
+            id: est.id,
+            estimateNumber: est.estimateNumber,
+            status: est.status,
+          });
+        },
+      }),
+
+      new DynamicStructuredTool({
+        name: 'convert_estimate_to_invoice',
+        description:
+          'Convert an accepted estimate into an invoice. The estimate must be in accepted status.',
+        schema: z.object({
+          id: z.string().uuid().describe('Estimate UUID'),
+        }),
+        func: async (input) => {
+          const result = await this.estimates.convertToInvoice(
+            ownerId,
+            input.id,
+          );
+          return JSON.stringify({
+            estimateId: result.estimate.id,
+            estimateNumber: result.estimate.estimateNumber,
+            estimateStatus: result.estimate.status,
+            invoiceId: result.invoice.id,
+            invoiceNumber: result.invoice.invoiceNumber,
+            invoiceTotal: `${result.invoice.currency} ${Number(result.invoice.total).toFixed(2)}`,
           });
         },
       }),

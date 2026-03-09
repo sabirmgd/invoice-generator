@@ -7,9 +7,13 @@ export class PortalToken extends BaseEntity {
   @Index()
   token!: string;
 
-  @Column()
+  @Column({ nullable: true })
   @Index()
-  invoiceId!: string;
+  invoiceId?: string;
+
+  @Column({ nullable: true })
+  @Index()
+  estimateId?: string;
 
   @Column({ type: 'timestamp', nullable: true })
   expiresAt?: Date;

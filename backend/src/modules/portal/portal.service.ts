@@ -24,9 +24,22 @@ export class PortalService {
     return token;
   }
 
+  async generateEstimateToken(
+    estimateId: string,
+    expiresInDays?: number,
+  ): Promise<string> {
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = expiresInDays
+      ? new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000)
+      : undefined;
+
+    await this.tokenRepo.save({ token, estimateId, expiresAt });
+    return token;
+  }
+
   async validateToken(
     token: string,
-  ): Promise<{ valid: boolean; invoiceId?: string }> {
+  ): Promise<{ valid: boolean; invoiceId?: string; estimateId?: string }> {
     const record = await this.tokenRepo.findOne({
       where: { token, isActive: true },
     });
@@ -39,7 +52,11 @@ export class PortalService {
       return { valid: false };
     }
 
-    return { valid: true, invoiceId: record.invoiceId };
+    return {
+      valid: true,
+      invoiceId: record.invoiceId,
+      estimateId: record.estimateId,
+    };
   }
 
   async getOrCreateToken(invoiceId: string): Promise<string> {
@@ -54,5 +71,19 @@ export class PortalService {
     }
 
     return this.generateToken(invoiceId);
+  }
+
+  async getOrCreateEstimateToken(estimateId: string): Promise<string> {
+    const existing = await this.tokenRepo.findOne({
+      where: { estimateId, isActive: true },
+    });
+
+    if (existing) {
+      if (!existing.expiresAt || new Date() < existing.expiresAt) {
+        return existing.token;
+      }
+    }
+
+    return this.generateEstimateToken(estimateId);
   }
 }
